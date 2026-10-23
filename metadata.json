@@ -1,0 +1,6 @@
+{
+  "name": "Grateful Relief Loan Manager",
+  "description": "Production loan management, daily repayment collection, reconciliation, and accounting system for Grateful Relief Program Limited.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
