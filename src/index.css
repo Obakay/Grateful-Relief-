@@ -6,6 +6,7 @@
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   code, pre, .font-mono {
@@ -13,7 +14,182 @@
   }
 }
 
-/* Custom scrollbars */
+/* =========================================================================
+   GLOBAL DARK MODE THEME SPECIFICATIONS
+   Reduces eye strain for microfinance field officers & accounting staff
+   working extended or late evening hours.
+   ========================================================================= */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b1120;
+  color: #f8fafc;
+}
+
+/* Container & Card Background Overrides in Dark Mode */
+.dark .bg-slate-50 {
+  background-color: #0b1120 !important;
+}
+
+.dark .bg-white {
+  background-color: #151e32 !important;
+  color: #f8fafc !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Borders in Dark Mode */
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #27354d !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27354d !important;
+}
+
+/* Text Colors in Dark Mode */
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-700,
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Emerald Accent Adjustments in Dark Mode */
+.dark .bg-emerald-50,
+.dark .bg-emerald-50\/70,
+.dark .bg-emerald-50\/50,
+.dark .bg-emerald-50\/40,
+.dark .bg-emerald-50\/30,
+.dark .bg-emerald-50\/20 {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+}
+
+.dark .border-emerald-100,
+.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.dark .text-emerald-950,
+.dark .text-emerald-900,
+.dark .text-emerald-800 {
+  color: #6ee7b7 !important;
+}
+
+.dark .text-emerald-700 {
+  color: #34d399 !important;
+}
+
+/* Soft Badges & Category Tags in Dark Mode */
+.dark .bg-emerald-100 {
+  background-color: rgba(6, 78, 59, 0.5) !important;
+  color: #a7f3d0 !important;
+}
+
+.dark .bg-amber-100,
+.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.4) !important;
+  color: #fde68a !important;
+}
+
+.dark .text-amber-900,
+.dark .text-amber-800,
+.dark .text-amber-700 {
+  color: #fde68a !important;
+}
+
+.dark .bg-rose-100,
+.dark .bg-rose-50 {
+  background-color: rgba(159, 18, 57, 0.4) !important;
+  color: #fecdd3 !important;
+}
+
+.dark .text-rose-900,
+.dark .text-rose-800,
+.dark .text-rose-700 {
+  color: #fca5a5 !important;
+}
+
+.dark .bg-blue-100,
+.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.4) !important;
+  color: #bfdbfe !important;
+}
+
+.dark .bg-purple-100 {
+  background-color: rgba(88, 28, 135, 0.4) !important;
+  color: #e9d5ff !important;
+}
+
+.dark .bg-indigo-100 {
+  background-color: rgba(49, 46, 129, 0.4) !important;
+  color: #c7d2fe !important;
+}
+
+.dark .bg-teal-100 {
+  background-color: rgba(19, 78, 74, 0.4) !important;
+  color: #99f6e4 !important;
+}
+
+/* Interactive Elements & Form Inputs in Dark Mode */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: #1a2438 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #1f2b42 !important;
+}
+
+.dark .hover\:bg-slate-200:hover {
+  background-color: #2e3d5b !important;
+}
+
+/* Modals & Dialogs in Dark Mode */
+.dark .bg-white.rounded-2xl,
+.dark .bg-white.rounded-3xl {
+  background-color: #151e32 !important;
+  border-color: #27354d !important;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -29,9 +205,19 @@
   background: #94a3b8;
 }
 
-/* Print styles for official receipts and contracts */
+.dark ::-webkit-scrollbar-track {
+  background: #0b1120;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Print styles for official receipts and contracts - always white paper */
 @media print {
-  body {
+  body, .dark body {
     background: white !important;
     color: black !important;
   }
@@ -41,7 +227,9 @@
   .print-only {
     display: block !important;
   }
-  .print-card {
+  .print-card, .dark .print-card {
+    background: white !important;
+    color: black !important;
     border: 1px solid #14532d !important;
     box-shadow: none !important;
     page-break-inside: avoid;

@@ -305,7 +305,25 @@ export interface CollectionFollowUp {
 
 export interface AuditEvent {
   id: string;
-  eventType: 'LOGIN' | 'BORROWER_CREATED' | 'BORROWER_UPDATED' | 'APPLICATION_SUBMITTED' | 'APPLICATION_APPROVED' | 'APPLICATION_REJECTED' | 'LOAN_DISBURSED' | 'REPAYMENT_RECORDED' | 'REPAYMENT_REVERSED' | 'EXPENSE_APPROVED' | 'RECONCILIATION_COMPLETED' | 'SETTINGS_CHANGED';
+  eventType:
+    | 'LOGIN'
+    | 'BORROWER_CREATED'
+    | 'BORROWER_UPDATED'
+    | 'APPLICATION_SUBMITTED'
+    | 'APPLICATION_APPROVED'
+    | 'APPLICATION_REJECTED'
+    | 'LOAN_DISBURSED'
+    | 'REPAYMENT_RECORDED'
+    | 'REPAYMENT_REVERSED'
+    | 'EXPENSE_APPROVED'
+    | 'RECONCILIATION_COMPLETED'
+    | 'SETTINGS_CHANGED'
+    | 'BRANCH_CREATED'
+    | 'BRANCH_UPDATED'
+    | 'BRANCH_DELETED'
+    | 'COMPANY_PROFILE_UPDATED'
+    | 'BIOMETRIC_ENROLLED'
+    | 'BIOMETRIC_REMOVED';
   entityType: string;
   entityId: string;
   performedBy: string;
@@ -324,4 +342,46 @@ export interface SystemNotification {
   timestamp: string;
   read: boolean;
   linkTab?: string;
+}
+
+export interface CompanyProfile {
+  companyName: string;
+  registrationNumber: string;
+  taxId?: string;
+  licenseNumber?: string;
+  primaryPhone: string;
+  alternatePhone?: string;
+  email: string;
+  supportEmail?: string;
+  headquartersAddress: string;
+  city: string;
+  state: string;
+  postalCode?: string;
+  country: string;
+  operatingHours: string;
+  googleMapsUrl?: string;
+  defaultCurrency: string;
+  timezone: string;
+  lastUpdated: string;
+  updatedBy?: string;
+}
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  marketLocation: string;
+  address: string;
+  city: string;
+  state: string;
+  managerId?: string;
+  managerName?: string;
+  contactPhone: string;
+  contactEmail?: string;
+  operatingDays: string;
+  status: 'active' | 'inactive';
+  targetTradersCount?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }

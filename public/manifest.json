@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "Grateful Relief Loan Manager",
+  "short_name": "GratefulLoan",
+  "description": "Production loan management, daily repayment collection, reconciliation, and accounting system for Grateful Relief Program Limited.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#14532d",
+  "orientation": "portrait",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/aistudio/logo_ff978855.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/aistudio/logo_ff978855.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

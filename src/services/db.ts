@@ -20,11 +20,122 @@ import {
   AuditEvent,
   SystemNotification,
   PaymentMethod,
+  CompanyProfile,
+  Branch,
 } from '../types';
 import { generateRepaymentSchedule, allocatePayment } from './loanCalculator';
 
 const STORAGE_KEY = 'grateful_relief_db_v2';
 const IDEMPOTENCY_CACHE_KEY = 'grp_idempotency_keys_v2';
+
+export const INITIAL_COMPANY_PROFILE: CompanyProfile = {
+  companyName: 'Grateful Relief Program Limited',
+  registrationNumber: 'RC: 1894220',
+  taxId: 'TIN: 24891029-0001',
+  licenseNumber: 'CBN/MFI/LA/2024/098',
+  primaryPhone: '+234 803 555 1020',
+  alternatePhone: '+234 814 777 3040',
+  email: 'info@gratefulrelief.ng',
+  supportEmail: 'support@gratefulrelief.ng',
+  headquartersAddress: 'Plot 42, Broad Street, Marina Commercial District',
+  city: 'Lagos Island',
+  state: 'Lagos State',
+  postalCode: '101223',
+  country: 'Nigeria',
+  operatingHours: 'Monday – Friday: 8:00 AM – 5:00 PM (West Africa Time)',
+  googleMapsUrl: 'https://maps.google.com/?q=Broad+Street+Marina+Lagos+Island',
+  defaultCurrency: 'NGN (₦)',
+  timezone: 'Africa/Lagos',
+  lastUpdated: '2026-10-24T08:00:00Z',
+  updatedBy: 'Ibrahim Babalola (Managing Director)',
+};
+
+export const INITIAL_BRANCHES: Branch[] = [
+  {
+    id: 'br-01',
+    code: 'GRP-LAG-ISL',
+    name: 'Lagos Island (Balogun Market)',
+    marketLocation: 'Balogun Ultra-Modern, Idumota & Mandilas Commercial Hub',
+    address: 'Shop 42, Broad Street, Marina Commercial Axis, Lagos Island',
+    city: 'Lagos Island',
+    state: 'Lagos State',
+    managerId: 'usr-admin-01',
+    managerName: 'Ibrahim Babalola',
+    contactPhone: '+234 803 555 1020',
+    contactEmail: 'lagos.island@gratefulrelief.ng',
+    operatingDays: 'Monday – Friday (8:00 AM – 5:00 PM)',
+    status: 'active',
+    targetTradersCount: 250,
+    notes: 'Main flagship branch serving textile and provisions traders.',
+    createdAt: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'br-02',
+    code: 'GRP-LAG-YAB',
+    name: 'Yaba (Tejuosho Market)',
+    marketLocation: 'Tejuosho Ultra-Modern Phase I & II, Ojuelegba Market',
+    address: 'Suite B14, Tejuosho Market Complex, Yaba, Lagos',
+    city: 'Yaba / Mainland',
+    state: 'Lagos State',
+    managerId: 'usr-officer-01',
+    managerName: 'Chioma Adeleke',
+    contactPhone: '+234 814 777 3040',
+    contactEmail: 'yaba.branch@gratefulrelief.ng',
+    operatingDays: 'Monday – Friday (8:00 AM – 5:00 PM)',
+    status: 'active',
+    targetTradersCount: 180,
+    notes: 'Specializes in fresh commodities, foodstuffs, and catering vendors.',
+    createdAt: '2026-01-15T08:00:00Z',
+  },
+  {
+    id: 'br-03',
+    code: 'GRP-LAG-OSH',
+    name: 'Oshodi (Arena Market)',
+    marketLocation: 'Arena Shopping Complex, Bolade & Oshodi Underbridge Hub',
+    address: 'Block E, Shop 19, The Arena Complex, Bolade, Oshodi, Lagos',
+    city: 'Oshodi / Isolo',
+    state: 'Lagos State',
+    contactPhone: '+234 802 888 4050',
+    contactEmail: 'oshodi.branch@gratefulrelief.ng',
+    operatingDays: 'Monday – Friday (8:00 AM – 5:00 PM)',
+    status: 'active',
+    targetTradersCount: 200,
+    notes: 'Heavy footfall retail and micro-wholesalers.',
+    createdAt: '2026-02-01T08:00:00Z',
+  },
+  {
+    id: 'br-04',
+    code: 'GRP-LAG-IKJ',
+    name: 'Ikeja (Computer Village & Central)',
+    marketLocation: 'Otigba Computer Village & Ikeja Modern Market',
+    address: '15 Otigba Street, Opposite Medical Road, Ikeja, Lagos',
+    city: 'Ikeja',
+    state: 'Lagos State',
+    contactPhone: '+234 809 333 4455',
+    contactEmail: 'ikeja.branch@gratefulrelief.ng',
+    operatingDays: 'Monday – Friday (8:30 AM – 5:30 PM)',
+    status: 'active',
+    targetTradersCount: 150,
+    notes: 'Electronics accessories and retail technology merchants.',
+    createdAt: '2026-02-15T08:00:00Z',
+  },
+  {
+    id: 'br-05',
+    code: 'GRP-LAG-ALB',
+    name: 'Alaba International (Wholesale Hub)',
+    marketLocation: 'Alaba International Electronics & Electricals Section',
+    address: 'Fancy Line Plaza, Shop 8B, Alaba International, Ojo, Lagos',
+    city: 'Ojo / Alaba',
+    state: 'Lagos State',
+    contactPhone: '+234 803 777 9900',
+    contactEmail: 'alaba.branch@gratefulrelief.ng',
+    operatingDays: 'Monday – Friday (8:00 AM – 5:00 PM)',
+    status: 'active',
+    targetTradersCount: 300,
+    notes: 'Large volume turnover expansion loans.',
+    createdAt: '2026-03-01T08:00:00Z',
+  },
+];
 
 export const INITIAL_STAFF: UserProfile[] = [
   {
@@ -219,6 +330,8 @@ export const INITIAL_BORROWERS: Borrower[] = [
 export interface AppDatabase {
   users: UserProfile[];
   currentUserId: string;
+  companyProfile: CompanyProfile;
+  branches: Branch[];
   borrowers: Borrower[];
   products: LoanProduct[];
   applications: LoanApplication[];
@@ -625,6 +738,8 @@ function createInitialDatabase(): AppDatabase {
   return {
     users: INITIAL_STAFF,
     currentUserId: 'usr-admin-01', // Start as Admin
+    companyProfile: INITIAL_COMPANY_PROFILE,
+    branches: INITIAL_BRANCHES,
     borrowers: INITIAL_BORROWERS,
     products: INITIAL_PRODUCTS,
     applications: initialApplications,
@@ -658,7 +773,14 @@ class DatabaseService {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (!parsed.companyProfile) {
+          parsed.companyProfile = INITIAL_COMPANY_PROFILE;
+        }
+        if (!parsed.branches || parsed.branches.length === 0) {
+          parsed.branches = INITIAL_BRANCHES;
+        }
+        return parsed;
       }
     } catch (e) {
       console.warn('Failed to load DB from localStorage, falling back to seed data', e);
@@ -1583,6 +1705,134 @@ class DatabaseService {
       completedLoans,
       overdueLoans,
       par30Ratio: Math.round(par30Ratio * 10) / 10,
+    };
+  }
+
+  // --- Company Profile Management ---
+  public getCompanyProfile(): CompanyProfile {
+    return { ...this.db.companyProfile };
+  }
+
+  public updateCompanyProfile(updates: Partial<CompanyProfile>): CompanyProfile {
+    const user = this.getCurrentUser();
+    if (user.role !== 'administrator') {
+      throw new Error('Unauthorized: Only administrators can update company location and profile.');
+    }
+    this.db.companyProfile = {
+      ...this.db.companyProfile,
+      ...updates,
+      lastUpdated: new Date().toISOString(),
+      updatedBy: `${user.fullName} (${user.role.replace('_', ' ')})`,
+    };
+    this.logAudit(
+      'COMPANY_PROFILE_UPDATED',
+      'CompanyProfile',
+      'main-profile',
+      `Updated company headquarters location and corporate details`,
+      updates
+    );
+    this.saveDatabase();
+    return { ...this.db.companyProfile };
+  }
+
+  // --- Branch Network Management ---
+  public getBranches(): Branch[] {
+    return [...this.db.branches];
+  }
+
+  public getActiveBranches(): Branch[] {
+    return this.db.branches.filter(b => b.status === 'active');
+  }
+
+  public getBranchById(id: string): Branch | undefined {
+    return this.db.branches.find(b => b.id === id);
+  }
+
+  public createBranch(data: Omit<Branch, 'id' | 'createdAt'>): Branch {
+    const user = this.getCurrentUser();
+    if (user.role !== 'administrator') {
+      throw new Error('Unauthorized: Only administrators can add new branches.');
+    }
+
+    const newBranch: Branch = {
+      ...data,
+      id: `br-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    this.db.branches.push(newBranch);
+    this.logAudit(
+      'BRANCH_CREATED',
+      'Branch',
+      newBranch.id,
+      `Created new branch: ${newBranch.name} (${newBranch.marketLocation})`,
+      { code: newBranch.code, address: newBranch.address }
+    );
+    this.saveDatabase();
+    return newBranch;
+  }
+
+  public updateBranch(id: string, updates: Partial<Branch>): Branch {
+    const user = this.getCurrentUser();
+    if (user.role !== 'administrator') {
+      throw new Error('Unauthorized: Only administrators can edit branches.');
+    }
+
+    const idx = this.db.branches.findIndex(b => b.id === id);
+    if (idx === -1) {
+      throw new Error('Branch not found');
+    }
+
+    this.db.branches[idx] = {
+      ...this.db.branches[idx],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.logAudit(
+      'BRANCH_UPDATED',
+      'Branch',
+      id,
+      `Updated branch details: ${this.db.branches[idx].name}`,
+      updates
+    );
+    this.saveDatabase();
+    return { ...this.db.branches[idx] };
+  }
+
+  public deleteBranch(id: string): { success: boolean; message: string } {
+    const user = this.getCurrentUser();
+    if (user.role !== 'administrator') {
+      throw new Error('Unauthorized: Only administrators can delete branches.');
+    }
+
+    const target = this.db.branches.find(b => b.id === id);
+    if (!target) {
+      throw new Error('Branch not found');
+    }
+
+    // Verify if loans or borrowers are tied to this branch
+    const borrowersCount = this.db.borrowers.filter(b => b.branch === target.name).length;
+    const loansCount = this.db.loans.filter(l => l.branch === target.name).length;
+
+    if (borrowersCount > 0 || loansCount > 0) {
+      return {
+        success: false,
+        message: `Cannot delete branch "${target.name}". It is associated with ${borrowersCount} active borrower(s) and ${loansCount} loan record(s). Deactivate the branch instead.`,
+      };
+    }
+
+    this.db.branches = this.db.branches.filter(b => b.id !== id);
+    this.logAudit(
+      'BRANCH_DELETED',
+      'Branch',
+      id,
+      `Deleted branch: ${target.name} (${target.code})`
+    );
+    this.saveDatabase();
+    return {
+      success: true,
+      message: `Branch "${target.name}" has been permanently removed.`,
     };
   }
 

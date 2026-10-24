@@ -4,7 +4,7 @@
  * Currency: NGN (₦) | Timezone: Africa/Lagos
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dbService } from './services/db';
 import { TabType, Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -20,7 +20,9 @@ import { ReconciliationView } from './components/ReconciliationView';
 import { AccountingReportsView } from './components/AccountingReportsView';
 import { InvestorManagementView } from './components/InvestorManagementView';
 import { StaffManagementView } from './components/StaffManagementView';
+import { CompanyBranchesView } from './components/CompanyBranchesView';
 import { AuditTrailView } from './components/AuditTrailView';
+import { LoginView } from './components/LoginView';
 
 // Modals
 import { ReceiptModal } from './components/ReceiptModal';
@@ -28,13 +30,29 @@ import { LoanAgreementModal } from './components/LoanAgreementModal';
 import { RepaymentScheduleModal } from './components/RepaymentScheduleModal';
 import { TestSuiteModal } from './components/TestSuiteModal';
 import { DatabaseDocsModal } from './components/DatabaseDocsModal';
+import { ThemeMode, getInitialTheme, applyTheme } from './services/theme';
 import { Repayment, Loan, Borrower, SystemNotification } from './types';
 
 export default function App() {
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('grp_auth_active') !== 'false';
+  });
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [currentUser, setCurrentUser] = useState(dbService.getCurrentUser());
   const [users, setUsers] = useState(dbService.getUsers());
   const [notifications, setNotifications] = useState<SystemNotification[]>(dbService.getNotifications());
+
+  // Apply theme on mount and changes
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   // Modal states
   const [activeReceipt, setActiveReceipt] = useState<{ repayment: Repayment; loan?: Loan | null } | null>(null);
@@ -71,16 +89,36 @@ export default function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <LoginView
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onLoginSuccess={user => {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          localStorage.setItem('grp_auth_active', 'true');
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120] flex flex-col font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 selection:text-emerald-900">
       {/* Top Header */}
       <Header
         currentUser={currentUser}
         users={users}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onSwitchUser={handleSwitchUser}
         onOpenTests={() => setIsTestModalOpen(true)}
         onOpenDocs={() => setIsDocsModalOpen(true)}
         onResetData={handleResetData}
+        onSignOut={() => {
+          setIsAuthenticated(false);
+          localStorage.setItem('grp_auth_active', 'false');
+        }}
         notifications={notifications}
         onNotificationClick={handleNotificationClick}
       />
@@ -167,6 +205,8 @@ export default function App() {
               onSwitchUser={handleSwitchUser}
             />
           )}
+
+          {currentTab === 'branches' && <CompanyBranchesView />}
 
           {currentTab === 'audit' && <AuditTrailView />}
         </main>

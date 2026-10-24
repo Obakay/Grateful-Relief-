@@ -14,6 +14,7 @@ import {
   History,
   ShieldCheck,
   UserCheck,
+  Building2,
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -30,6 +31,7 @@ export type TabType =
   | 'reports'
   | 'investors'
   | 'staff'
+  | 'branches'
   | 'audit';
 
 interface SidebarProps {
@@ -128,6 +130,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'staff',
       label: 'Staff & Permissions',
       icon: UserCheck,
+      roles: ['administrator'],
+    },
+    {
+      id: 'branches',
+      label: 'Company & Branches',
+      icon: Building2,
       roles: ['administrator'],
     },
     {

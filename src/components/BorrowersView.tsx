@@ -451,9 +451,11 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                     onChange={e => setNewBranch(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="Lagos Island (Balogun Market)">Lagos Island (Balogun Market)</option>
-                    <option value="Yaba (Tejuosho Market)">Yaba (Tejuosho Market)</option>
-                    <option value="Oshodi (Arena Market)">Oshodi (Arena Market)</option>
+                    {dbService.getActiveBranches().map(b => (
+                      <option key={b.id} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

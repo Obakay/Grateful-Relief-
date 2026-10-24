@@ -59,12 +59,7 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
   const [editApprovalLimit, setEditApprovalLimit] = useState<number>(0);
   const [editIsActive, setEditIsActive] = useState<boolean>(true);
 
-  const branches = [
-    'Lagos Island (Balogun Market)',
-    'Yaba (Tejuosho Market)',
-    'Oshodi (Arena Market)',
-    'Head Office (Broad Street, Lagos)',
-  ];
+  const branches = dbService.getBranches().map(b => b.name);
 
   const roleLabels: Record<UserRole, { label: string; badge: string; desc: string }> = {
     administrator: {

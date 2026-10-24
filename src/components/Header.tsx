@@ -9,17 +9,24 @@ import {
   User,
   AlertCircle,
   FileCheck2,
+  LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { UserProfile, SystemNotification } from '../types';
 import { dbService } from '../services/db';
+import { ThemeMode } from '../services/theme';
 
 interface HeaderProps {
   currentUser: UserProfile;
   users: UserProfile[];
+  theme: ThemeMode;
+  onToggleTheme: () => void;
   onSwitchUser: (userId: string) => void;
   onOpenTests: () => void;
   onOpenDocs: () => void;
   onResetData: () => void;
+  onSignOut: () => void;
   notifications: SystemNotification[];
   onNotificationClick: (notif: SystemNotification) => void;
 }
@@ -27,10 +34,13 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
   users,
+  theme,
+  onToggleTheme,
   onSwitchUser,
   onOpenTests,
   onOpenDocs,
   onResetData,
+  onSignOut,
   notifications,
   onNotificationClick,
 }) => {
@@ -106,6 +116,26 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Database className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden lg:inline">SQL SOP</span>
+            </button>
+
+            {/* Global Dark Mode / Light Mode Toggle */}
+            <button
+              onClick={onToggleTheme}
+              className="flex items-center gap-1.5 bg-emerald-900/80 hover:bg-emerald-800 text-emerald-100 text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-emerald-700/60 shadow-xs transition"
+              title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme (Reduce Eye Strain)'}
+              aria-label="Toggle dark mode"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="hidden sm:inline">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="hidden sm:inline">Dark</span>
+                </>
+              )}
             </button>
 
             {/* Notification Bell */}
@@ -216,7 +246,17 @@ export const Header: React.FC<HeaderProps> = ({
                     ))}
                   </div>
 
-                  <div className="border-t border-slate-100 p-2 mt-1">
+                  <div className="border-t border-slate-100 p-2 mt-1 space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onSignOut();
+                      }}
+                      className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-xs text-slate-700 hover:bg-slate-100 font-semibold transition"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-slate-500" />
+                      Sign Out to Login Page
+                    </button>
                     <button
                       onClick={() => {
                         if (confirm('Reset application state to initial demonstration fixtures?')) {
