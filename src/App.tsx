@@ -50,6 +50,17 @@ export default function App() {
     applyTheme(theme);
   }, [theme]);
 
+  // Reactive Database listener (refreshes state on local changes & central cloud sync)
+  const [, setDbVersion] = useState(0);
+  useEffect(() => {
+    return dbService.subscribe(() => {
+      setDbVersion(v => v + 1);
+      setCurrentUser(dbService.getCurrentUser());
+      setUsers(dbService.getUsers());
+      setNotifications(dbService.getNotifications());
+    });
+  }, []);
+
   const handleToggleTheme = () => {
     const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);

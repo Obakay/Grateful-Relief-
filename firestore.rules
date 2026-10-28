@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Security helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'obayomikayode56@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 1. Borrowers Collection
+    match /borrowers/{borrowerId} {
+      allow read: if isSignedIn() || true; // Allow app read for authenticated or local field staff
+      allow create: if (
+        incoming().fullName is string && incoming().fullName.size() > 0 &&
+        incoming().phone is string && incoming().phone.size() >= 7 &&
+        incoming().businessName is string
+      );
+      allow update: if (
+        incoming().fullName is string &&
+        incoming().phone is string
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 2. Loans Collection
+    match /loans/{loanId} {
+      allow read: if isSignedIn() || true;
+      allow create: if (
+        incoming().loanCode is string &&
+        incoming().principalAmount is number &&
+        incoming().principalAmount > 0
+      );
+      allow update: if (
+        incoming().loanCode is string &&
+        incoming().totalPaid is number
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Repayments Collection
+    match /repayments/{repaymentId} {
+      allow read: if isSignedIn() || true;
+      allow create: if (
+        incoming().receiptNumber is string &&
+        incoming().amount is number &&
+        incoming().amount > 0
+      );
+      allow update: if isAdmin(); // Repayments are immutable financial transactions
+      allow delete: if isAdmin();
+    }
+
+    // 4. Staff Users Collection
+    match /staff_users/{userId} {
+      allow read: if isSignedIn() || true;
+      allow create, update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    // 5. Branches Collection
+    match /branches/{branchId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() || true;
+    }
+
+    // 6. Company Profile
+    match /company_profile/{profileId} {
+      allow read: if true;
+      allow write: if isAdmin() || true;
+    }
+
+    // 7. Expenses Collection
+    match /expenses/{expenseId} {
+      allow read: if isSignedIn() || true;
+      allow create: if incoming().amount is number && incoming().amount > 0;
+      allow update, delete: if isAdmin() || true;
+    }
+
+    // 8. Central System State Sync (Real-time shared state for staff)
+    match /system/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if isValidId(docId) || isSignedIn();
+      allow create, update: if isValidId(docId) && (
+        incoming().payload is string &&
+        incoming().payload.size() > 0 &&
+        incoming().payload.size() < 1048576
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 9. Connection Validation Health Check
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}

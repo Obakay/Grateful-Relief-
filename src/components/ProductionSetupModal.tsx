@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Rocket,
   ShieldCheck,
@@ -22,8 +22,12 @@ import {
   Smartphone,
   Wifi,
   Copy,
+  Cloud,
+  CloudOff,
+  Server,
 } from 'lucide-react';
 import { dbService } from '../services/db';
+import { cloudSyncService, CloudSyncState } from '../services/cloudSync';
 import { UserProfile } from '../types';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -42,12 +46,63 @@ export const ProductionSetupModal: React.FC<ProductionSetupModalProps> = ({
   onSystemStateChanged,
   onNavigateToTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'go-live' | 'workflow' | 'backup' | 'install'>('go-live');
+  const [activeTab, setActiveTab] = useState<'go-live' | 'workflow' | 'cloud' | 'backup' | 'install'>('go-live');
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [copiedLink, setCopiedLink] = useState(false);
   const systemMode = dbService.getSystemMode();
   const prodConfig = dbService.getProductionConfig();
   const branches = dbService.getActiveBranches();
+
+  // Cloud Sync State
+  const [cloudSyncState, setCloudSyncState] = useState<CloudSyncState>(cloudSyncService.getState());
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  useEffect(() => {
+    return cloudSyncService.subscribe(setCloudSyncState);
+  }, []);
+
+  const handlePushToCloud = async () => {
+    setIsCloudSyncing(true);
+    setActionMessage(null);
+    try {
+      const ok = await cloudSyncService.pushLocalToCloud(false);
+      if (ok) {
+        setActionMessage({
+          type: 'success',
+          text: 'All borrower records, active loans, and repayments successfully synchronized to central Firestore cloud!',
+        });
+      } else {
+        setActionMessage({
+          type: 'error',
+          text: 'Cloud sync encountered an issue. Check network connection.',
+        });
+      }
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    setIsCloudSyncing(true);
+    setActionMessage(null);
+    try {
+      const ok = await cloudSyncService.pullFromCloud();
+      if (ok) {
+        setActionMessage({
+          type: 'success',
+          text: 'Latest company records downloaded from central cloud database successfully.',
+        });
+        onSystemStateChanged();
+      } else {
+        setActionMessage({
+          type: 'error',
+          text: 'Failed to pull cloud updates.',
+        });
+      }
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   // Go Live Form State
   const [adminEmail, setAdminEmail] = useState(
@@ -268,6 +323,24 @@ export const ProductionSetupModal: React.FC<ProductionSetupModalProps> = ({
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>Real-Time Workflow Guide</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('cloud');
+              setActionMessage(null);
+            }}
+            className={`py-3.5 px-4 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+              activeTab === 'cloud'
+                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Cloud className="w-4 h-4 text-sky-500" />
+            <span className="flex items-center gap-1.5">
+              <span>Central Cloud Sync</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </span>
           </button>
 
           <button
@@ -582,6 +655,111 @@ export const ProductionSetupModal: React.FC<ProductionSetupModalProps> = ({
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: CENTRAL CLOUD SYNC */}
+          {activeTab === 'cloud' && (
+            <div className="space-y-5">
+              <div className="bg-sky-50 dark:bg-sky-950/40 p-4 rounded-2xl border border-sky-200 dark:border-sky-800">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <Cloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-sky-950 dark:text-sky-100">
+                        Google Cloud Firestore Central Database
+                      </h3>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        {cloudSyncState.status === 'connected' ? 'LIVE SYNC ACTIVE' : cloudSyncState.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-sky-800 dark:text-sky-300 mt-1 leading-relaxed">
+                      All field officers, accountants, and branch managers share one centralized database. Any new client registered, loan approved, or cash collected in the field immediately reflects across all staff devices in real time.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cloud Parameters Card */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Server className="w-3.5 h-3.5" />
+                  Cloud Infrastructure Connection
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Cloud Project ID</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">{cloudSyncState.projectId || 'argon-portfolio-m5v9p'}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Firestore Database ID</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white text-xs truncate block" title={cloudSyncState.databaseId}>
+                      {cloudSyncState.databaseId || 'ai-studio-gratefulrelieflo-b037ad62-da29-4ff6-bdff-7cc029881e38'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Sync Engine Status</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Automatic Bi-Directional Sync
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Last Cloud Sync</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 text-xs block mt-0.5">
+                      {cloudSyncState.lastSyncedAt ? new Date(cloudSyncState.lastSyncedAt).toLocaleTimeString() + ' (' + new Date(cloudSyncState.lastSyncedAt).toLocaleDateString() + ')' : 'Connecting...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cloud Synchronization Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={handlePushToCloud}
+                  disabled={isCloudSyncing}
+                  className="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100 text-left transition group disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">Push Local Data to Cloud</span>
+                    <RefreshCw className={`w-4 h-4 text-emerald-600 ${isCloudSyncing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform'}`} />
+                  </div>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400">
+                    Broadcasts your latest borrowers, loans, and branch addresses to the central database now.
+                  </p>
+                </button>
+
+                <button
+                  onClick={handlePullFromCloud}
+                  disabled={isCloudSyncing}
+                  className="p-4 rounded-2xl border border-sky-300 dark:border-sky-700/60 bg-sky-50/70 dark:bg-sky-950/30 hover:bg-sky-100 text-left transition group disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-sky-950 dark:text-sky-200">Pull Latest Cloud Updates</span>
+                    <Download className="w-4 h-4 text-sky-600 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <p className="text-[11px] text-sky-800 dark:text-sky-400">
+                    Fetches and refreshes recent loans or collections recorded by colleagues on other devices.
+                  </p>
+                </button>
+              </div>
+
+              {/* Multi-Device Staff Guide */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  How Staff Members Share the Same Database
+                </h5>
+                <ol className="list-decimal pl-4 space-y-1 text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+                  <li>Share the app link with your staff or install the PWA on their Android/iPhone.</li>
+                  <li>When any staff member opens the app, it automatically connects to this central Firestore database.</li>
+                  <li>When an officer registers a customer in Balogun or Tejuosho Market, that borrower instantly appears on the branch manager and admin screens.</li>
+                  <li>If an officer enters a basement or dead zone with no cellular network, the app continues working locally, and automatically pushes collections as soon as signal returns.</li>
+                </ol>
               </div>
             </div>
           )}

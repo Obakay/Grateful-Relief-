@@ -826,12 +826,46 @@ class DatabaseService {
     return initial;
   }
 
-  private saveDatabase(data?: AppDatabase): void {
+  private listeners: Set<() => void> = new Set();
+
+  public subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(fn => {
+      try {
+        fn();
+      } catch (err) {
+        console.error('Database listener error:', err);
+      }
+    });
+  }
+
+  public getFullDatabase(): AppDatabase {
+    return { ...this.db };
+  }
+
+  public replaceDatabase(newDb: AppDatabase): void {
+    if (!newDb || !Array.isArray(newDb.borrowers) || !Array.isArray(newDb.loans)) return;
+    this.db = {
+      ...this.db,
+      ...newDb,
+    };
+    this.saveDatabase(this.db, false);
+    this.notifyListeners();
+  }
+
+  private saveDatabase(data?: AppDatabase, notify: boolean = true): void {
     const toSave = data || this.db;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (e) {
       console.error('Failed to persist DB to localStorage', e);
+    }
+    if (notify) {
+      this.notifyListeners();
     }
   }
 

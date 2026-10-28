@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Shield,
   Bell,
@@ -14,9 +14,12 @@ import {
   Moon,
   Rocket,
   Sparkles,
+  Cloud,
+  CloudOff,
 } from 'lucide-react';
 import { UserProfile, SystemNotification } from '../types';
 import { dbService } from '../services/db';
+import { cloudSyncService, CloudSyncState } from '../services/cloudSync';
 import { ThemeMode } from '../services/theme';
 import { NetworkStatusBadge } from './OfflineIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -52,6 +55,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
+  const [cloudState, setCloudState] = useState<CloudSyncState>(cloudSyncService.getState());
+
+  useEffect(() => {
+    return cloudSyncService.subscribe(setCloudState);
+  }, []);
 
   const unreadNotifs = notifications.filter(n => !n.read);
   const systemMode = dbService.getSystemMode();
@@ -107,6 +115,37 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Online / Offline Network Badge */}
             <NetworkStatusBadge />
+
+            {/* Cloud Database Sync Status Badge */}
+            <button
+              onClick={onOpenProductionSetup}
+              className={`flex items-center gap-1.5 text-xs font-semibold py-1.5 px-2.5 rounded-lg border shadow-xs transition ${
+                cloudState.status === 'connected'
+                  ? 'bg-sky-950/70 hover:bg-sky-900 text-sky-200 border-sky-700/60'
+                  : cloudState.status === 'syncing'
+                  ? 'bg-amber-950/70 hover:bg-amber-900 text-amber-200 border-amber-700/60'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+              }`}
+              title={`Central Cloud Database (${cloudState.projectId || 'argon-portfolio-m5v9p'}) • Click for Cloud Sync Tools`}
+            >
+              {cloudState.status === 'connected' ? (
+                <>
+                  <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="hidden xl:inline text-[11px]">Cloud Shared</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </>
+              ) : cloudState.status === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                  <span className="hidden xl:inline text-[11px]">Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <CloudOff className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="hidden xl:inline text-[11px]">Local Mode</span>
+                </>
+              )}
+            </button>
 
             {/* PWA Install / Download App CTA */}
             <PWAInstallButton />

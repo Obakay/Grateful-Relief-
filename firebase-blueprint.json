@@ -1,0 +1,237 @@
+{
+  "entities": {
+    "Borrower": {
+      "title": "Borrower",
+      "description": "Registered borrower profiles and KYC records for micro-traders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "borrowerCode": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "alternatePhone": { "type": "string" },
+        "nin": { "type": "string" },
+        "bvn": { "type": "string" },
+        "residentialAddress": { "type": "string" },
+        "businessName": { "type": "string" },
+        "businessAddress": { "type": "string" },
+        "businessType": { "type": "string" },
+        "marketStallNumber": { "type": "string" },
+        "nextOfKinName": { "type": "string" },
+        "nextOfKinPhone": { "type": "string" },
+        "nextOfKinRelationship": { "type": "string" },
+        "assignedOfficerId": { "type": "string" },
+        "assignedOfficerName": { "type": "string" },
+        "branch": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "pending_verification", "blacklisted", "inactive"] },
+        "creditScoreRating": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "fullName", "phone", "nin", "businessName", "businessAddress", "status"]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "Disbursed micro-loans with repayment metrics and balances",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "loanCode": { "type": "string" },
+        "applicationId": { "type": "string" },
+        "borrowerId": { "type": "string" },
+        "borrowerName": { "type": "string" },
+        "borrowerPhone": { "type": "string" },
+        "borrowerBusiness": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "principalAmount": { "type": "number" },
+        "contractualInterest": { "type": "number" },
+        "totalScheduledRepayment": { "type": "number" },
+        "interestRatePercent": { "type": "number" },
+        "durationUnits": { "type": "number" },
+        "repaymentFrequency": { "type": "string" },
+        "dailyScheduledRepayment": { "type": "number" },
+        "disbursementDate": { "type": "string" },
+        "repaymentStartDate": { "type": "string" },
+        "repaymentEndDate": { "type": "string" },
+        "branch": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "fully_paid", "overdue", "defaulted", "written_off"] },
+        "totalPaid": { "type": "number" },
+        "principalPaid": { "type": "number" },
+        "interestPaid": { "type": "number" },
+        "outstandingBalance": { "type": "number" },
+        "outstandingPrincipal": { "type": "number" },
+        "outstandingInterest": { "type": "number" },
+        "installmentsTotal": { "type": "number" },
+        "installmentsPaidCount": { "type": "number" },
+        "daysOverdue": { "type": "number" },
+        "overdueAmount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "loanCode", "borrowerId", "borrowerName", "principalAmount", "totalScheduledRepayment", "status"]
+    },
+    "Repayment": {
+      "title": "Repayment",
+      "description": "Repayment collection transaction receipts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "receiptNumber": { "type": "string" },
+        "idempotencyKey": { "type": "string" },
+        "loanId": { "type": "string" },
+        "loanCode": { "type": "string" },
+        "borrowerId": { "type": "string" },
+        "borrowerName": { "type": "string" },
+        "borrowerPhone": { "type": "string" },
+        "amount": { "type": "number" },
+        "principalAllocated": { "type": "number" },
+        "interestAllocated": { "type": "number" },
+        "excessAllocated": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "bank_transfer", "pos"] },
+        "transactionReference": { "type": "string" },
+        "collectionDate": { "type": "string" },
+        "collectionTime": { "type": "string" },
+        "collectedBy": { "type": "string" },
+        "collectedByName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "receiptNumber", "loanId", "borrowerId", "amount", "paymentMethod", "collectedBy"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Company branch and operational hub details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "marketLocation": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "code", "name", "address", "city", "state", "status"]
+    },
+    "StaffUser": {
+      "title": "StaffUser",
+      "description": "System staff profile with roles and branch assignment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["administrator", "loan_officer", "auditor", "branch_manager", "accountant", "supervisor"] },
+        "phone": { "type": "string" },
+        "branch": { "type": "string" },
+        "approvalLimit": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "fullName", "role", "branch", "isActive"]
+    },
+    "CompanyProfile": {
+      "title": "CompanyProfile",
+      "description": "Official company profile, registration, and headquarters address",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "primaryPhone": { "type": "string" },
+        "email": { "type": "string" },
+        "headquartersAddress": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["companyName", "registrationNumber", "primaryPhone", "email", "headquartersAddress", "city", "state", "country"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Company operational expenditure records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "expenseCode": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "recipientVendor": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "submittedBy": { "type": "string" },
+        "submittedByName": { "type": "string" },
+        "submittedDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "paid"] },
+        "branch": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "expenseCode", "category", "amount", "status", "submittedBy"]
+    },
+    "SystemState": {
+      "title": "SystemState",
+      "description": "Central database snapshot synchronized live across all staff devices",
+      "type": "object",
+      "properties": {
+        "payload": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedByName": { "type": "string" },
+        "version": { "type": "string" },
+        "recordsSummary": { "type": "object" }
+      },
+      "required": ["payload", "updatedAt"]
+    },
+    "TestRecord": {
+      "title": "TestRecord",
+      "description": "Health check document for testing Firestore server connectivity",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/borrowers/{borrowerId}": {
+      "schema": "Borrower",
+      "description": "Stores client records, phone numbers, and market trader details"
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Active and completed loan files with balances and schedules"
+    },
+    "/repayments/{repaymentId}": {
+      "schema": "Repayment",
+      "description": "Collection transaction receipts recorded by officers"
+    },
+    "/staff_users/{userId}": {
+      "schema": "StaffUser",
+      "description": "Authorized staff accounts, branch assignments, and roles"
+    },
+    "/branches/{branchId}": {
+      "schema": "Branch",
+      "description": "Operating branches and market locations"
+    },
+    "/company_profile/{profileId}": {
+      "schema": "CompanyProfile",
+      "description": "Global company profile and legal registration details"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Operating expenses and approval records"
+    },
+    "/system/{docId}": {
+      "schema": "SystemState",
+      "description": "Real-time central cloud database synchronization document"
+    },
+    "/test/{docId}": {
+      "schema": "TestRecord",
+      "description": "Read-only ping for validating Firestore connection on startup"
+    }
+  }
+}
