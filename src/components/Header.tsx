@@ -12,10 +12,14 @@ import {
   LogOut,
   Sun,
   Moon,
+  Rocket,
+  Sparkles,
 } from 'lucide-react';
 import { UserProfile, SystemNotification } from '../types';
 import { dbService } from '../services/db';
 import { ThemeMode } from '../services/theme';
+import { NetworkStatusBadge } from './OfflineIndicator';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   currentUser: UserProfile;
@@ -25,6 +29,7 @@ interface HeaderProps {
   onSwitchUser: (userId: string) => void;
   onOpenTests: () => void;
   onOpenDocs: () => void;
+  onOpenProductionSetup: () => void;
   onResetData: () => void;
   onSignOut: () => void;
   notifications: SystemNotification[];
@@ -39,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSwitchUser,
   onOpenTests,
   onOpenDocs,
+  onOpenProductionSetup,
   onResetData,
   onSignOut,
   notifications,
@@ -48,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
   const unreadNotifs = notifications.filter(n => !n.read);
+  const systemMode = dbService.getSystemMode();
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -98,6 +105,39 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action buttons & User Switcher */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Online / Offline Network Badge */}
+            <NetworkStatusBadge />
+
+            {/* PWA Install / Download App CTA */}
+            <PWAInstallButton />
+
+            {/* Go Live / Production Assistant Button */}
+            <button
+              onClick={onOpenProductionSetup}
+              className={`flex items-center gap-1.5 text-xs font-bold py-1.5 px-3 rounded-lg border shadow-xs transition ${
+                systemMode === 'production'
+                  ? 'bg-emerald-600/35 hover:bg-emerald-600/50 text-emerald-200 border-emerald-400/50'
+                  : 'bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border-amber-400/60 animate-pulse'
+              }`}
+              title={
+                systemMode === 'production'
+                  ? 'Live Production System Active • Click for Backup, Data Tools & Settings'
+                  : 'Demo Sandbox Active • Click to Launch Live Production with Clean ₦0 Ledger'
+              }
+            >
+              {systemMode === 'production' ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>LIVE SYSTEM</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Go Live</span>
+                </>
+              )}
+            </button>
+
             {/* Run Tests Button */}
             <button
               onClick={onOpenTests}
@@ -247,6 +287,16 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
 
                   <div className="border-t border-slate-100 p-2 mt-1 space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onOpenProductionSetup();
+                      }}
+                      className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-xs text-emerald-800 hover:bg-emerald-50 font-bold transition"
+                    >
+                      <Rocket className="w-3.5 h-3.5 text-emerald-600" />
+                      Live Operations & Data Backup
+                    </button>
                     <button
                       onClick={() => {
                         setShowUserMenu(false);

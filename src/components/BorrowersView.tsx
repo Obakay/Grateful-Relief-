@@ -48,6 +48,8 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
   const [formError, setFormError] = useState<string | null>(null);
 
   const currentUser = dbService.getCurrentUser();
+  const allStaff = dbService.getUsers();
+  const [assignedOfficerId, setAssignedOfficerId] = useState<string>(currentUser.id);
   const allLoans = dbService.getLoans();
 
   const filteredBorrowers = borrowers.filter(b => {
@@ -76,6 +78,8 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
     const maskedNin = newNin ? `${newNin.slice(0, 8)}***` : '29384756***';
     const maskedBvn = newBvn ? `${newBvn.slice(0, 8)}***` : undefined;
 
+    const officer = allStaff.find(s => s.id === assignedOfficerId) || currentUser;
+
     try {
       const created = dbService.addBorrower({
         fullName: newFullName,
@@ -91,8 +95,8 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
         nextOfKinName: newNextOfKinName,
         nextOfKinPhone: newNextOfKinPhone,
         nextOfKinRelationship: newNextOfKinRel,
-        assignedOfficerId: currentUser.id,
-        assignedOfficerName: currentUser.fullName,
+        assignedOfficerId: officer.id,
+        assignedOfficerName: officer.fullName,
         branch: newBranch,
         status: 'active',
         creditScoreRating: 'A - Low Risk',
@@ -454,6 +458,20 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                     {dbService.getActiveBranches().map(b => (
                       <option key={b.id} value={b.name}>
                         {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Assigned Loan Officer</label>
+                  <select
+                    value={assignedOfficerId}
+                    onChange={e => setAssignedOfficerId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-xs"
+                  >
+                    {allStaff.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.fullName} ({s.role.replace('_', ' ')})
                       </option>
                     ))}
                   </select>

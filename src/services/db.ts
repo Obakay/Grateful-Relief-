@@ -328,6 +328,14 @@ export const INITIAL_BORROWERS: Borrower[] = [
 ];
 
 export interface AppDatabase {
+  systemMode?: 'demo' | 'production';
+  productionConfig?: {
+    initializedAt: string;
+    initializedBy: string;
+    superAdminEmail: string;
+    superAdminName: string;
+    superAdminPhone: string;
+  };
   users: UserProfile[];
   currentUserId: string;
   companyProfile: CompanyProfile;
@@ -736,6 +744,7 @@ function createInitialDatabase(): AppDatabase {
   ];
 
   return {
+    systemMode: 'demo',
     users: INITIAL_STAFF,
     currentUserId: 'usr-admin-01', // Start as Admin
     companyProfile: INITIAL_COMPANY_PROFILE,
@@ -779,6 +788,9 @@ class DatabaseService {
         }
         if (!parsed.branches || parsed.branches.length === 0) {
           parsed.branches = INITIAL_BRANCHES;
+        }
+        if (!parsed.systemMode) {
+          parsed.systemMode = 'demo';
         }
         return parsed;
       }
@@ -1836,6 +1848,197 @@ class DatabaseService {
     };
   }
 
+  // --- System Mode & Production Operations ---
+  public getSystemMode(): 'demo' | 'production' {
+    return this.db.systemMode || 'demo';
+  }
+
+  public getProductionConfig() {
+    return this.db.productionConfig;
+  }
+
+  /**
+   * Initializes Clean Live Production Mode:
+   * - Sets systemMode to 'production'
+   * - Configures Super Administrator (e.g. obayomikayode56@gmail.com)
+   * - Wipes fictional demo borrowers, test loans, dummy repayments, and sample expenses
+   * - Preserves official company profile (Grateful Relief Program Limited, RC: 1894220)
+   * - Preserves active branches & standard Nigerian loan products
+   * - Resets audit trail with initial production authorization event
+   */
+  public initializeLiveProduction(config: {
+    superAdminEmail: string;
+    superAdminName: string;
+    superAdminPhone: string;
+    branchName?: string;
+  }): UserProfile {
+    const email = config.superAdminEmail.trim().toLowerCase();
+    const fullName = config.superAdminName.trim() || 'Super Administrator';
+    const phone = config.superAdminPhone.trim() || '+234 803 555 1020';
+    const branch = config.branchName || (this.db.branches[0]?.name ?? 'Lagos Island (Balogun Market)');
+
+    const superAdmin: UserProfile = {
+      id: 'usr-admin-01',
+      email,
+      fullName,
+      role: 'administrator',
+      phone,
+      branch,
+      approvalLimit: 10000000, // ₦10,000,000
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    const initTimestamp = new Date().toISOString();
+
+    this.db.systemMode = 'production';
+    this.db.productionConfig = {
+      initializedAt: initTimestamp,
+      initializedBy: `${fullName} (${email})`,
+      superAdminEmail: email,
+      superAdminName: fullName,
+      superAdminPhone: phone,
+    };
+
+    this.db.users = [superAdmin];
+    this.db.currentUserId = superAdmin.id;
+
+    // Clean operational records to ensure ₦0.00 pristine ledger
+    this.db.borrowers = [];
+    this.db.applications = [];
+    this.db.loans = [];
+    this.db.schedules = {};
+    this.db.repayments = [];
+    this.db.expenses = [];
+    this.db.reconciliations = [];
+    this.db.investors = [];
+    this.db.distributions = [];
+    this.db.followUps = [];
+
+    // Clear and set welcoming notifications
+    this.db.notifications = [
+      {
+        id: `notif-live-${Date.now()}`,
+        title: '🟢 Live Production Mode Initialized',
+        message: `Welcome, ${fullName}. Clean financial ledger established at ₦0.00. You can now register real staff members and onboard market borrowers.`,
+        type: 'success',
+        timestamp: initTimestamp,
+        read: false,
+        linkTab: 'staff',
+      },
+      {
+        id: `notif-live-guide-${Date.now()}`,
+        title: 'Step 1: Onboard Real Staff',
+        message: 'Head over to Staff Management to create accounts for your Loan Officers and Branch Managers.',
+        type: 'info',
+        timestamp: initTimestamp,
+        read: false,
+        linkTab: 'staff',
+      },
+    ];
+
+    // Establish genesis audit trail record
+    this.db.auditEvents = [
+      {
+        id: `aud-${Date.now()}-genesis`,
+        eventType: 'SYSTEM_PRODUCTION_INITIALIZED',
+        entityType: 'System',
+        entityId: 'live-production-init',
+        performedBy: superAdmin.id,
+        performedByName: superAdmin.fullName,
+        userRole: 'administrator',
+        description: `Live Production Mode initialized by Super Admin ${fullName} (${email}). Fictional demo records cleared. Clean ₦0.00 ledger established.`,
+        details: {
+          superAdminEmail: email,
+          superAdminName: fullName,
+          branch,
+          timestamp: initTimestamp,
+        },
+        timestamp: initTimestamp,
+      },
+    ];
+
+    // Reset idempotency cache
+    this.idempotencyKeys.clear();
+    localStorage.removeItem(IDEMPOTENCY_CACHE_KEY);
+
+    this.saveDatabase();
+    return superAdmin;
+  }
+
+  /**
+   * Import / Restore Full Database from JSON
+   */
+  public importData(jsonString: string): { success: boolean; message: string; recordCounts?: Record<string, number> } {
+    try {
+      const parsed = JSON.parse(jsonString);
+
+      // Validate required core tables
+      if (
+        !parsed ||
+        !Array.isArray(parsed.users) ||
+        !Array.isArray(parsed.borrowers) ||
+        !Array.isArray(parsed.loans) ||
+        !Array.isArray(parsed.branches) ||
+        !parsed.companyProfile
+      ) {
+        return {
+          success: false,
+          message: 'Invalid backup file. Missing required schema tables (users, borrowers, loans, branches, companyProfile).',
+        };
+      }
+
+      // Ensure fallbacks for optional tables
+      this.db = {
+        systemMode: parsed.systemMode || 'production',
+        productionConfig: parsed.productionConfig,
+        users: parsed.users,
+        currentUserId: parsed.currentUserId || parsed.users[0]?.id || 'usr-admin-01',
+        companyProfile: parsed.companyProfile,
+        branches: parsed.branches,
+        borrowers: parsed.borrowers,
+        products: parsed.products || INITIAL_PRODUCTS,
+        applications: parsed.applications || [],
+        loans: parsed.loans || [],
+        schedules: parsed.schedules || {},
+        repayments: parsed.repayments || [],
+        expenses: parsed.expenses || [],
+        reconciliations: parsed.reconciliations || [],
+        investors: parsed.investors || [],
+        distributions: parsed.distributions || [],
+        followUps: parsed.followUps || [],
+        auditEvents: parsed.auditEvents || [],
+        notifications: parsed.notifications || [],
+      };
+
+      this.logAudit(
+        'DATABASE_RESTORED',
+        'Database',
+        'backup-restore',
+        `Restored database from external JSON backup file (${this.db.borrowers.length} borrowers, ${this.db.loans.length} loans, ${this.db.users.length} staff).`
+      );
+
+      this.saveDatabase();
+
+      return {
+        success: true,
+        message: 'Database backup restored and verified successfully!',
+        recordCounts: {
+          staff: this.db.users.length,
+          borrowers: this.db.borrowers.length,
+          loans: this.db.loans.length,
+          branches: this.db.branches.length,
+          repayments: this.db.repayments.length,
+        },
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Failed to import JSON backup: ${err?.message || 'Syntax error'}`,
+      };
+    }
+  }
+
   // --- Reset to Demo Data ---
   public resetToDemoData() {
     this.db = createInitialDatabase();
@@ -1845,6 +2048,12 @@ class DatabaseService {
   }
 
   public exportData(): string {
+    this.logAudit(
+      'DATABASE_EXPORTED',
+      'Database',
+      'json-export',
+      `Exported complete database backup containing ${this.db.borrowers.length} borrowers and ${this.db.loans.length} loans.`
+    );
     return JSON.stringify(this.db, null, 2);
   }
 }

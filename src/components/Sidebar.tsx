@@ -17,6 +17,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { UserRole } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 export type TabType =
   | 'dashboard'
@@ -208,6 +209,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
       </nav>
+
+      {/* PWA Download / Install App Action */}
+      <div className="px-3 pt-2 hidden md:block">
+        <PWAInstallButton variant="nav" />
+      </div>
 
       {/* Role Notice at bottom */}
       <div className="mt-auto p-4 hidden md:block border-t border-slate-100">

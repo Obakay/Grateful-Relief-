@@ -13,6 +13,8 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  Rocket,
+  ArrowRight,
 } from 'lucide-react';
 import { dbService } from '../services/db';
 import { formatNaira, formatDateNG } from '../services/loanCalculator';
@@ -21,13 +23,20 @@ import { Loan, Repayment } from '../types';
 interface DashboardViewProps {
   onNavigateToTab: (tab: any) => void;
   onViewReceipt: (repayment: Repayment) => void;
+  onOpenProductionSetup?: () => void;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, onViewReceipt }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({
+  onNavigateToTab,
+  onViewReceipt,
+  onOpenProductionSetup,
+}) => {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const metrics = dbService.getDashboardMetrics();
   const allLoans = dbService.getLoans();
   const allRepayments = dbService.getRepayments().filter(r => !r.isReversed);
+  const systemMode = dbService.getSystemMode();
+  const activeBranches = dbService.getActiveBranches();
 
   const filteredLoans = selectedBranch === 'all'
     ? allLoans
@@ -35,13 +44,89 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
 
   const branches = [
     { id: 'all', name: 'All Branches (Company-Wide)' },
-    { id: 'Balogun', name: 'Lagos Island (Balogun Market Branch)' },
-    { id: 'Tejuosho', name: 'Yaba (Tejuosho Market Branch)' },
-    { id: 'Arena', name: 'Oshodi (Arena Market Branch)' },
+    ...activeBranches.map(b => ({ id: b.name, name: b.name })),
   ];
 
   return (
     <div className="space-y-6">
+      {/* Mode Callout Banner */}
+      {systemMode === 'demo' && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-transparent border border-amber-300 dark:border-amber-700/60 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Demonstration Mode Active
+                </span>
+                <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-semibold">
+                  Sample Data Loaded
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">
+                Ready to input real customers and staff? Launch <strong>Live Production Mode</strong> to establish a pristine ₦0.00 ledger with your Super Admin credentials.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onOpenProductionSetup}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
+            >
+              <Rocket className="w-4 h-4" />
+              <span>Launch Live Production Mode</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {systemMode === 'production' && allLoans.length === 0 && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+              <Rocket className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm text-emerald-950 dark:text-emerald-100">
+                  🟢 Live Production Mode Active
+                </span>
+                <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 font-bold px-2 py-0.5 rounded-full">
+                  ₦0.00 Clean Ledger
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                Your loan ledger is clean and ready. Follow these initial steps to start operations:
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={() => onNavigateToTab('staff')}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1"
+                >
+                  <span>1. Register Real Staff</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onNavigateToTab('borrowers')}
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 text-xs font-bold hover:bg-emerald-50 transition flex items-center gap-1"
+                >
+                  <span>2. Add Real Borrowers / KYC</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={onOpenProductionSetup}
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1"
+                >
+                  <span>Backup Database</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner & Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>

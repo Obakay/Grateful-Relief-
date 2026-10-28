@@ -16,6 +16,7 @@ export interface UserProfile {
   avatarUrl?: string;
   approvalLimit: number; // in NGN
   isActive: boolean;
+  password?: string;
   createdAt: string;
 }
 
@@ -303,6 +304,8 @@ export interface CollectionFollowUp {
   outcome: 'Promise to Pay' | 'Refused' | 'Stall Closed' | 'Partial Paid' | 'Unreachable';
 }
 
+export type SystemMode = 'demo' | 'production';
+
 export interface AuditEvent {
   id: string;
   eventType:
@@ -323,7 +326,10 @@ export interface AuditEvent {
     | 'BRANCH_DELETED'
     | 'COMPANY_PROFILE_UPDATED'
     | 'BIOMETRIC_ENROLLED'
-    | 'BIOMETRIC_REMOVED';
+    | 'BIOMETRIC_REMOVED'
+    | 'SYSTEM_PRODUCTION_INITIALIZED'
+    | 'DATABASE_RESTORED'
+    | 'DATABASE_EXPORTED';
   entityType: string;
   entityId: string;
   performedBy: string;

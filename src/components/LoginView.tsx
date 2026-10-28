@@ -23,6 +23,8 @@ import { UserProfile, UserRole } from '../types';
 import { ThemeMode } from '../services/theme';
 import { biometricService, EnrolledBiometricCredential } from '../services/biometrics';
 import { BiometricModal } from './BiometricModal';
+import { OfflineIndicator } from './OfflineIndicator';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface LoginViewProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -32,8 +34,10 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onToggleTheme }) => {
   const staffAccounts = dbService.getUsers();
+  const currentAdmin = staffAccounts.find(u => u.role === 'administrator') || staffAccounts[0];
+  const systemMode = dbService.getSystemMode();
 
-  const [email, setEmail] = useState('ibrahim.babalola@gratefulrelief.ng');
+  const [email, setEmail] = useState(() => currentAdmin?.email || 'obayomikayode56@gmail.com');
   const [password, setPassword] = useState('grateful2026');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -179,30 +183,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.15),transparent_50%)] pointer-events-none" />
 
-      {/* Floating Dark Mode Toggle */}
-      {onToggleTheme && (
-        <div className="absolute top-4 right-4 z-20">
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            aria-label="Toggle Dark/Light Mode"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 text-xs font-medium transition cursor-pointer"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-300" />
-                <span>Light Mode</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Dark Mode</span>
-              </>
-            )}
-          </button>
+      {/* Top Floating Controls: Offline banner & Action buttons */}
+      <div className="absolute top-0 left-0 right-0 z-30">
+        <OfflineIndicator />
+        <div className="flex items-center justify-end gap-2 p-4">
+          <PWAInstallButton />
+          {onToggleTheme && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              aria-label="Toggle Dark/Light Mode"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 text-xs font-medium transition cursor-pointer"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Dark</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="w-full max-w-md relative z-10 space-y-5">
         {/* Brand Header */}
@@ -377,13 +385,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
             </button>
           </form>
 
-          {/* Quick Demo Sign In Shortcut */}
+          {/* Quick Sign In Shortcut */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block text-center">
-              Quick 1-Click Demo Login
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {staffAccounts.slice(0, 4).map(staff => (
+            <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+              <span>{systemMode === 'production' ? 'Registered Staff Accounts' : 'Quick 1-Click Demo Login'}</span>
+              <span className="text-[9px] font-mono lowercase">{staffAccounts.length} staff</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+              {staffAccounts.map(staff => (
                 <button
                   key={staff.id}
                   type="button"

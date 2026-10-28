@@ -23,6 +23,7 @@ import { StaffManagementView } from './components/StaffManagementView';
 import { CompanyBranchesView } from './components/CompanyBranchesView';
 import { AuditTrailView } from './components/AuditTrailView';
 import { LoginView } from './components/LoginView';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 // Modals
 import { ReceiptModal } from './components/ReceiptModal';
@@ -30,6 +31,7 @@ import { LoanAgreementModal } from './components/LoanAgreementModal';
 import { RepaymentScheduleModal } from './components/RepaymentScheduleModal';
 import { TestSuiteModal } from './components/TestSuiteModal';
 import { DatabaseDocsModal } from './components/DatabaseDocsModal';
+import { ProductionSetupModal } from './components/ProductionSetupModal';
 import { ThemeMode, getInitialTheme, applyTheme } from './services/theme';
 import { Repayment, Loan, Borrower, SystemNotification } from './types';
 
@@ -60,6 +62,7 @@ export default function App() {
   const [activeScheduleLoan, setActiveScheduleLoan] = useState<Loan | null>(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [isProductionModalOpen, setIsProductionModalOpen] = useState(false);
 
   // App metrics for sidebar badges
   const applications = dbService.getApplications();
@@ -105,6 +108,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120] flex flex-col font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-100 selection:text-emerald-900">
+      {/* Offline Connectivity Notification Banner */}
+      <OfflineIndicator />
+
       {/* Top Header */}
       <Header
         currentUser={currentUser}
@@ -114,6 +120,7 @@ export default function App() {
         onSwitchUser={handleSwitchUser}
         onOpenTests={() => setIsTestModalOpen(true)}
         onOpenDocs={() => setIsDocsModalOpen(true)}
+        onOpenProductionSetup={() => setIsProductionModalOpen(true)}
         onResetData={handleResetData}
         onSignOut={() => {
           setIsAuthenticated(false);
@@ -139,6 +146,7 @@ export default function App() {
           {currentTab === 'dashboard' && (
             <DashboardView
               onNavigateToTab={tab => setCurrentTab(tab)}
+              onOpenProductionSetup={() => setIsProductionModalOpen(true)}
               onViewReceipt={repayment => {
                 const loan = dbService.getLoans().find(l => l.id === repayment.loanId);
                 setActiveReceipt({ repayment, loan });
@@ -244,6 +252,18 @@ export default function App() {
       <DatabaseDocsModal
         isOpen={isDocsModalOpen}
         onClose={() => setIsDocsModalOpen(false)}
+      />
+
+      <ProductionSetupModal
+        isOpen={isProductionModalOpen}
+        onClose={() => setIsProductionModalOpen(false)}
+        currentUser={currentUser}
+        onSystemStateChanged={() => {
+          setCurrentUser(dbService.getCurrentUser());
+          setUsers(dbService.getUsers());
+          setNotifications(dbService.getNotifications());
+        }}
+        onNavigateToTab={tab => setCurrentTab(tab as TabType)}
       />
     </div>
   );
