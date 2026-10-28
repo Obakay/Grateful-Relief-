@@ -52,6 +52,17 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
   const [assignedOfficerId, setAssignedOfficerId] = useState<string>(currentUser.id);
   const allLoans = dbService.getLoans();
 
+  // Live duplicate checking against existing registered clients
+  const duplicateCheck = (newPhone.trim() || newAlternatePhone.trim() || newNin.trim() || newBvn.trim() || (newFullName.trim().length >= 4 ? newFullName.trim() : ''))
+    ? dbService.checkDuplicateBorrower({
+        phone: newPhone.trim(),
+        alternatePhone: newAlternatePhone.trim(),
+        nin: newNin.trim(),
+        bvn: newBvn.trim(),
+        fullName: newFullName.trim().length >= 4 ? newFullName.trim() : undefined,
+      })
+    : { isDuplicate: false };
+
   const filteredBorrowers = borrowers.filter(b => {
     const q = searchTerm.toLowerCase();
     const matchesSearch =
@@ -71,6 +82,15 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
 
     if (!newFullName || !newPhone || !newBusinessName || !newNextOfKinName || !newNextOfKinPhone) {
       setFormError('Please fill in all mandatory KYC and emergency contact fields.');
+      return;
+    }
+
+    // STRICT DOUBLE REGISTRATION GUARD
+    if (duplicateCheck.isDuplicate && duplicateCheck.existingBorrower) {
+      const existing = duplicateCheck.existingBorrower;
+      setFormError(
+        `Double Registration Disallowed: A client with this ${duplicateCheck.field?.toUpperCase() || 'identifier'} is already registered as "${existing.fullName}" (${existing.borrowerCode} • Phone: ${existing.phone}). Duplicate registration of clients is prohibited by company policy.`
+      );
       return;
     }
 
@@ -108,6 +128,9 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
       // Reset
       setNewFullName('');
       setNewPhone('');
+      setNewAlternatePhone('');
+      setNewNin('');
+      setNewBvn('');
       setNewBusinessName('');
       setNewStallNumber('');
     } catch (err: any) {
@@ -370,9 +393,40 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                 </div>
               )}
 
+              {/* LIVE DOUBLE REGISTRATION ALERT BANNER */}
+              {duplicateCheck.isDuplicate && duplicateCheck.existingBorrower && (
+                <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl text-rose-900 flex items-start gap-2.5 animate-fadeIn">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold uppercase text-[11px] tracking-wider text-rose-800">
+                        Double Registration Disallowed
+                      </span>
+                      <span className="bg-rose-200 text-rose-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Duplicate Collision Detected
+                      </span>
+                    </div>
+                    <p className="font-medium text-slate-800 text-xs">
+                      A client with matching <span className="font-bold underline">{duplicateCheck.field?.toUpperCase()}</span> already exists in the registry:
+                    </p>
+                    <div className="bg-white/90 p-2.5 rounded-lg border border-rose-200 font-mono text-[11px] text-slate-900 space-y-0.5">
+                      <div>Name: <strong className="font-sans font-bold">{duplicateCheck.existingBorrower.fullName}</strong></div>
+                      <div>Client Code: <strong>{duplicateCheck.existingBorrower.borrowerCode}</strong></div>
+                      <div>Phone: <strong>{duplicateCheck.existingBorrower.phone}</strong></div>
+                      <div>Branch: <strong>{duplicateCheck.existingBorrower.branch}</strong></div>
+                    </div>
+                    <p className="text-[11px] text-rose-700 italic">
+                      Under Grateful Relief loan governance, creating duplicate records for the same borrower is blocked to protect credit records.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Borrower Full Name *</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Borrower Full Name *
+                  </label>
                   <input
                     type="text"
                     value={newFullName}
@@ -383,19 +437,36 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Mobile Phone Number *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700">Mobile Phone Number *</label>
+                    <span className="text-[10px] text-emerald-800 font-medium">Checked for duplicates</span>
+                  </div>
                   <input
                     type="tel"
                     value={newPhone}
                     onChange={e => setNewPhone(e.target.value)}
                     placeholder="+234 803 123 4567"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 ${
+                      duplicateCheck.isDuplicate && duplicateCheck.field === 'phone'
+                        ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/50'
+                        : 'border-slate-300 focus:ring-emerald-500'
+                    }`}
                     required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Alternate Phone Number (Optional)</label>
+                  <input
+                    type="tel"
+                    value={newAlternatePhone}
+                    onChange={e => setNewAlternatePhone(e.target.value)}
+                    placeholder="+234 812 345 6789"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Business / Trade Name *</label>
                   <input
@@ -407,6 +478,9 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Market Stall Number</label>
                   <input
@@ -417,9 +491,6 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Business Trade Category</label>
                   <select
@@ -437,13 +508,27 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                     <option value="Other">Other Retail</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">NIN (Masked on Save)</label>
+                  <label className="font-bold text-slate-700 block mb-1">NIN (National ID)</label>
                   <input
                     type="text"
                     value={newNin}
                     onChange={e => setNewNin(e.target.value)}
-                    placeholder="11 digits National ID"
+                    placeholder="11 digits NIN"
+                    maxLength={11}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">BVN (Bank Verification)</label>
+                  <input
+                    type="text"
+                    value={newBvn}
+                    onChange={e => setNewBvn(e.target.value)}
+                    placeholder="11 digits BVN"
                     maxLength={11}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
                   />
@@ -518,15 +603,21 @@ export const BorrowersView: React.FC<BorrowersViewProps> = ({ onSelectBorrowerLo
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl font-medium"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl font-medium cursor-pointer hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow-xs"
+                  disabled={duplicateCheck.isDuplicate}
+                  className={`px-6 py-2 text-white font-bold rounded-xl shadow-xs transition ${
+                    duplicateCheck.isDuplicate
+                      ? 'bg-slate-400 cursor-not-allowed opacity-70'
+                      : 'bg-emerald-800 hover:bg-emerald-900 cursor-pointer'
+                  }`}
+                  title={duplicateCheck.isDuplicate ? 'Double registration disallowed' : 'Register Borrower'}
                 >
-                  Save & Register Borrower
+                  {duplicateCheck.isDuplicate ? 'Double Registration Blocked' : 'Save & Register Borrower'}
                 </button>
               </div>
             </form>

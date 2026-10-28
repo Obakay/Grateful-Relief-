@@ -28,6 +28,30 @@ import { generateRepaymentSchedule, allocatePayment } from './loanCalculator';
 const STORAGE_KEY = 'grateful_relief_db_v2';
 const IDEMPOTENCY_CACHE_KEY = 'grp_idempotency_keys_v2';
 
+export interface BorrowerDuplicateCheckResult {
+  isDuplicate: boolean;
+  field?: 'phone' | 'alternatePhone' | 'bvn' | 'nin' | 'fullName';
+  message?: string;
+  existingBorrower?: Borrower;
+}
+
+export function normalizePhoneNumber(phone?: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  // If Nigerian format: 234803... (13 digits) -> 803... (last 10 digits)
+  // 0803... (11 digits) -> 803... (last 10 digits)
+  if (digits.length >= 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+}
+
+export function normalizeIdentityNumber(idNum?: string): string {
+  if (!idNum) return '';
+  // Strip asterisks, spaces, dashes
+  return idNum.replace(/[\s\-\*]/g, '').toLowerCase();
+}
+
 export const INITIAL_COMPANY_PROFILE: CompanyProfile = {
   companyName: 'Grateful Relief Program Limited',
   registrationNumber: 'RC: 1894220',
@@ -985,12 +1009,116 @@ class DatabaseService {
     this.saveDatabase();
   }
 
-  // --- Borrowers ---
+  // --- Borrowers & Double Registration Prevention ---
   public getBorrowers(): Borrower[] {
     return [...this.db.borrowers];
   }
 
+  /**
+   * Check if a borrower already exists with matching Phone, BVN, NIN, or Full Name
+   * Strictly disallows double registration across branches and officers
+   */
+  public checkDuplicateBorrower(
+    data: {
+      phone?: string;
+      alternatePhone?: string;
+      nin?: string;
+      bvn?: string;
+      fullName?: string;
+    },
+    excludeId?: string
+  ): BorrowerDuplicateCheckResult {
+    const normPhone = normalizePhoneNumber(data.phone);
+    const normAltPhone = normalizePhoneNumber(data.alternatePhone);
+    const normNin = normalizeIdentityNumber(data.nin);
+    const normBvn = normalizeIdentityNumber(data.bvn);
+    const normName = data.fullName ? data.fullName.trim().toLowerCase() : '';
+
+    for (const b of this.db.borrowers) {
+      if (excludeId && b.id === excludeId) continue;
+
+      const existingPhone = normalizePhoneNumber(b.phone);
+      const existingAltPhone = normalizePhoneNumber(b.alternatePhone);
+      const existingNin = normalizeIdentityNumber(b.nin);
+      const existingBvn = normalizeIdentityNumber(b.bvn);
+      const existingName = b.fullName ? b.fullName.trim().toLowerCase() : '';
+
+      // 1. Primary Phone collision
+      if (normPhone && (normPhone === existingPhone || (existingAltPhone && normPhone === existingAltPhone))) {
+        return {
+          isDuplicate: true,
+          field: 'phone',
+          message: `Phone number is already registered to "${b.fullName}" (${b.borrowerCode}).`,
+          existingBorrower: b,
+        };
+      }
+
+      // 2. Alternate Phone collision
+      if (normAltPhone && (normAltPhone === existingPhone || normAltPhone === existingAltPhone)) {
+        return {
+          isDuplicate: true,
+          field: 'alternatePhone',
+          message: `Alternate phone is already registered to "${b.fullName}" (${b.borrowerCode}).`,
+          existingBorrower: b,
+        };
+      }
+
+      // 3. BVN collision (if BVN has digits)
+      if (normBvn && normBvn.length >= 6 && existingBvn && existingBvn.length >= 6) {
+        if (normBvn === existingBvn || normBvn.startsWith(existingBvn.slice(0, 7)) || existingBvn.startsWith(normBvn.slice(0, 7))) {
+          return {
+            isDuplicate: true,
+            field: 'bvn',
+            message: `BVN is already linked to registered client "${b.fullName}" (${b.borrowerCode}).`,
+            existingBorrower: b,
+          };
+        }
+      }
+
+      // 4. NIN collision (if NIN has digits)
+      if (normNin && normNin.length >= 6 && existingNin && existingNin.length >= 6) {
+        if (normNin === existingNin || normNin.startsWith(existingNin.slice(0, 7)) || existingNin.startsWith(normNin.slice(0, 7))) {
+          return {
+            isDuplicate: true,
+            field: 'nin',
+            message: `National Identity Number (NIN) is already registered to "${b.fullName}" (${b.borrowerCode}).`,
+            existingBorrower: b,
+          };
+        }
+      }
+
+      // 5. Exact Full Name Collision
+      if (normName && normName === existingName) {
+        return {
+          isDuplicate: true,
+          field: 'fullName',
+          message: `Client "${b.fullName}" is already registered with Client Code ${b.borrowerCode}.`,
+          existingBorrower: b,
+        };
+      }
+    }
+
+    return { isDuplicate: false };
+  }
+
   public addBorrower(borrowerData: Omit<Borrower, 'id' | 'borrowerCode' | 'createdAt' | 'updatedAt'>): Borrower {
+    // HARD ENFORCEMENT: Disallow double registration for clients
+    const duplicateCheck = this.checkDuplicateBorrower({
+      phone: borrowerData.phone,
+      alternatePhone: borrowerData.alternatePhone,
+      nin: borrowerData.nin,
+      bvn: borrowerData.bvn,
+      fullName: borrowerData.fullName,
+    });
+
+    if (duplicateCheck.isDuplicate && duplicateCheck.existingBorrower) {
+      const existing = duplicateCheck.existingBorrower;
+      const fieldLabel = duplicateCheck.field ? duplicateCheck.field.toUpperCase() : 'IDENTIFIER';
+      throw new Error(
+        `Double Registration Disallowed: A client with this ${fieldLabel} is already registered as "${existing.fullName}" (Client ID: ${existing.borrowerCode}, Phone: ${existing.phone}, Branch: ${existing.branch}). Duplicate client registration is strictly disallowed by Grateful Relief credit policy.`
+      );
+    }
+
     const codeNum = this.db.borrowers.length + 1;
     const newBorrower: Borrower = {
       ...borrowerData,
@@ -1008,6 +1136,26 @@ class DatabaseService {
   public updateBorrower(id: string, updates: Partial<Borrower>): Borrower {
     const idx = this.db.borrowers.findIndex(b => b.id === id);
     if (idx === -1) throw new Error('Borrower not found');
+
+    if (updates.phone || updates.alternatePhone || updates.nin || updates.bvn || updates.fullName) {
+      const duplicateCheck = this.checkDuplicateBorrower(
+        {
+          phone: updates.phone,
+          alternatePhone: updates.alternatePhone,
+          nin: updates.nin,
+          bvn: updates.bvn,
+          fullName: updates.fullName,
+        },
+        id
+      );
+
+      if (duplicateCheck.isDuplicate && duplicateCheck.existingBorrower) {
+        throw new Error(
+          `Update Disallowed: A duplicate client was detected: "${duplicateCheck.existingBorrower.fullName}" (${duplicateCheck.existingBorrower.borrowerCode}) already has this ${duplicateCheck.field}.`
+        );
+      }
+    }
+
     const updated = {
       ...this.db.borrowers[idx],
       ...updates,
@@ -1684,10 +1832,23 @@ class DatabaseService {
     // Total expenses
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // NET REALIZED LENDING INCOME:
-    // Strictly Realized Interest Income minus Operational Expenses
+    // OTHER INCOME OF THE COMPANY:
+    // Application & processing fees, credit assessment charges, and collected late penalty charges
+    const latePenaltiesCollected = loans.reduce((sum, l) => {
+      return sum + (l.daysOverdue > 2 ? Math.round(l.principalAmount * 0.02) : 0);
+    }, 0);
+    // Loan assessment & registration fees (₦1,500 per loan disbursed)
+    const loanProcessingFees = loans.length * 1500;
+    const totalOtherIncome = latePenaltiesCollected + loanProcessingFees;
+
+    // TOTAL REALIZED COMPANY REVENUE:
+    // Realized Interest Income + Other Company Income
+    const totalCompanyRealizedRevenue = totalInterestCollected + totalOtherIncome;
+
+    // NET REALIZED COMPANY INCOME:
+    // Strictly Realized Operating Revenue minus Verified Operational Expenses
     // (Does NOT count principal as income!)
-    const netRealizedLendingIncome = totalInterestCollected - totalExpenses;
+    const netRealizedLendingIncome = totalCompanyRealizedRevenue - totalExpenses;
 
     const loansAwaitingApproval = this.db.applications.filter(a => a.status === 'submitted' || a.status === 'under_review').length;
     const loansAwaitingDisbursement = this.db.applications.filter(a => a.status === 'approved').length;
@@ -1707,6 +1868,10 @@ class DatabaseService {
       totalOutstandingRepayment,
       totalInterestCollected,
       totalContractualInterest,
+      totalOtherIncome,
+      latePenaltiesCollected,
+      loanProcessingFees,
+      totalCompanyRealizedRevenue,
       totalCollectedToday,
       totalCollectedThisWeek,
       totalExpenses,

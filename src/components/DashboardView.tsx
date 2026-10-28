@@ -15,6 +15,8 @@ import {
   Sparkles,
   Rocket,
   ArrowRight,
+  Lock,
+  Shield,
 } from 'lucide-react';
 import { dbService } from '../services/db';
 import { formatNaira, formatDateNG } from '../services/loanCalculator';
@@ -37,6 +39,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const allRepayments = dbService.getRepayments().filter(r => !r.isReversed);
   const systemMode = dbService.getSystemMode();
   const activeBranches = dbService.getActiveBranches();
+  const currentUser = dbService.getCurrentUser();
+  const isAdmin = currentUser.role === 'administrator';
 
   const filteredLoans = selectedBranch === 'all'
     ? allLoans
@@ -141,7 +145,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {!isAdmin && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-semibold shadow-2xs">
+              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Realized & Other Income Confidential (Admin Only)</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <select
@@ -195,39 +205,81 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Realized Interest Income */}
+        {/* Card 3: Realized Interest & Other Income (Admin Only) */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-300 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Realized Interest Income</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-emerald-800" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              {isAdmin ? 'Realized Interest & Other Income' : 'Company Income (Realized)'}
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isAdmin ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-800'}`}>
+              {isAdmin ? <TrendingUp className="w-4 h-4 text-emerald-800" /> : <Lock className="w-4 h-4 text-amber-700" />}
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-emerald-900 tracking-tight">
-              {formatNaira(metrics.totalInterestCollected)}
-            </div>
-            <div className="text-[11px] text-emerald-700 font-medium mt-1">
-              <span>Contractual: {formatNaira(metrics.totalContractualInterest)}</span>
-            </div>
+            {isAdmin ? (
+              <>
+                <div className="text-2xl font-black text-emerald-900 tracking-tight">
+                  {formatNaira(metrics.totalCompanyRealizedRevenue)}
+                </div>
+                <div className="text-[11px] text-emerald-700 font-medium mt-1 flex flex-col sm:flex-row sm:items-center gap-1">
+                  <span>Interest: {formatNaira(metrics.totalInterestCollected)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>Other Income: {formatNaira(metrics.totalOtherIncome)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-mono font-black text-slate-400 tracking-wider">
+                    ₦ ••••••••
+                  </div>
+                  <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    <Lock className="w-3 h-3" /> Admin Only
+                  </span>
+                </div>
+                <div className="text-[11px] text-amber-700 font-medium mt-1">
+                  <span>Confidential • Restricted to Administrators</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Card 4: Net Realized Lending Income */}
-        <div className="bg-gradient-to-br from-emerald-900 to-emerald-950 text-white p-5 rounded-2xl shadow-md border border-emerald-800">
+        {/* Card 4: Net Realized Lending Income / Profit (Admin Only) */}
+        <div className={`text-white p-5 rounded-2xl shadow-md border ${isAdmin ? 'bg-gradient-to-br from-emerald-900 to-emerald-950 border-emerald-800' : 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Net Realized Lending Income</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-800 text-emerald-300 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+              {isAdmin ? 'Net Realized Company Profit' : 'Net Realized Income'}
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isAdmin ? 'bg-emerald-800 text-emerald-300' : 'bg-slate-700 text-amber-300'}`}>
+              {isAdmin ? <Sparkles className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-black text-white tracking-tight">
-              {formatNaira(metrics.netRealizedLendingIncome)}
-            </div>
-            <div className="text-[11px] text-emerald-300 mt-1">
-              <span>Interest ({formatNaira(metrics.totalInterestCollected)}) - Expenses ({formatNaira(metrics.totalExpenses)})</span>
-            </div>
+            {isAdmin ? (
+              <>
+                <div className="text-2xl font-black text-white tracking-tight">
+                  {formatNaira(metrics.netRealizedLendingIncome)}
+                </div>
+                <div className="text-[11px] text-emerald-300 mt-1">
+                  <span>Revenue ({formatNaira(metrics.totalCompanyRealizedRevenue)}) - Expenses ({formatNaira(metrics.totalExpenses)})</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-mono font-black text-slate-400 tracking-wider">
+                    ₦ ••••••••
+                  </div>
+                  <span className="inline-flex items-center gap-1 bg-amber-900/60 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-700/50">
+                    <Lock className="w-3 h-3" /> Admin Only
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-300 mt-1">
+                  <span>Operating earnings statement restricted to Administrators</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

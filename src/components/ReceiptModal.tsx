@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer, Share2, CheckCircle2 } from 'lucide-react';
+import { X, Printer, Share2, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { Repayment, Loan } from '../types';
 import { formatNaira, formatDateNG } from '../services/loanCalculator';
 
@@ -36,15 +36,26 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ repayment, loan, onC
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-emerald-900/20 my-8">
-        {/* Header bar */}
-        <div className="bg-emerald-900 text-white px-6 py-4 flex items-center justify-between no-print">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-lg">Transaction Receipt</h3>
+        {/* Header bar with prominent Back button */}
+        <div className="bg-emerald-900 text-white px-5 py-3.5 flex items-center justify-between no-print">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-950 text-white text-xs font-bold transition border border-emerald-700/60 shadow-xs cursor-pointer"
+              title="Return to Collections"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-sm sm:text-base">Transaction Receipt</h3>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-emerald-200 hover:text-white p-1 rounded-lg hover:bg-emerald-800 transition"
+            className="text-emerald-200 hover:text-white p-1 rounded-lg hover:bg-emerald-800 transition cursor-pointer"
+            title="Close Receipt"
           >
             <X className="w-5 h-5" />
           </button>
@@ -149,17 +160,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ repayment, loan, onC
         </div>
 
         {/* Action buttons */}
-        <div className="bg-slate-50 px-6 py-4 flex gap-3 border-t border-slate-200 no-print">
+        <div className="bg-slate-50 px-5 py-4 flex items-center gap-2.5 border-t border-slate-200 no-print">
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-4 rounded-xl border border-slate-300 transition shadow-xs text-xs cursor-pointer"
+            title="Return to Collections / Repayments"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold py-2.5 px-4 rounded-xl shadow-xs transition"
+            className="flex-1 flex items-center justify-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white font-semibold py-2.5 px-4 rounded-xl shadow-xs transition text-xs cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             Print Receipt
           </button>
           <button
             onClick={handleShareWhatsApp}
-            className="flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2.5 px-4 rounded-xl border border-slate-300 transition"
+            className="flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2.5 px-4 rounded-xl border border-slate-300 transition text-xs cursor-pointer"
             title="Copy for WhatsApp/SMS"
           >
             <Share2 className="w-4 h-4 text-emerald-600" />
