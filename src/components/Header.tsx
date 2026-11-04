@@ -16,6 +16,8 @@ import {
   Sparkles,
   Cloud,
   CloudOff,
+  Menu,
+  X,
 } from 'lucide-react';
 import { UserProfile, SystemNotification } from '../types';
 import { dbService } from '../services/db';

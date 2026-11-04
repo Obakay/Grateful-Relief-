@@ -57,9 +57,14 @@ export const LoanAgreementModal: React.FC<LoanAgreementModalProps> = ({ loan, bo
             </div>
             <div>
               <p className="text-slate-500 font-bold uppercase text-[10px]">The Borrower</p>
-              <p className="font-bold text-slate-900">{loan.borrowerName}</p>
+              <p className="font-bold text-slate-900 text-sm">{loan.borrowerName}</p>
               <p className="text-slate-600">Business: {loan.borrowerBusiness}</p>
               <p className="text-slate-600">Phone: {loan.borrowerPhone}</p>
+              {borrower?.nin && (
+                <p className="text-emerald-800 font-mono font-bold text-[11px] mt-0.5">
+                  NIN: {borrower.nin} {borrower.ninDocumentUrl ? '✓ (NIMC Slip Verified)' : ''}
+                </p>
+              )}
               {borrower?.residentialAddress && (
                 <p className="text-slate-600 truncate">Address: {borrower.residentialAddress}</p>
               )}

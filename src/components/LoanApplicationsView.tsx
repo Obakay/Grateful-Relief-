@@ -397,8 +397,8 @@ export const LoanApplicationsView: React.FC<LoanApplicationsViewProps> = ({ onAp
                 </div>
               )}
 
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Select Borrower *</label>
+              <div className="space-y-2">
+                <label className="font-bold text-slate-700 block">Select Borrower *</label>
                 <select
                   value={formBorrowerId}
                   onChange={e => setFormBorrowerId(e.target.value)}
@@ -411,6 +411,25 @@ export const LoanApplicationsView: React.FC<LoanApplicationsViewProps> = ({ onAp
                     </option>
                   ))}
                 </select>
+
+                {(() => {
+                  const b = borrowers.find(item => item.id === formBorrowerId);
+                  if (!b) return null;
+                  return (
+                    <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-emerald-950 block text-xs">{b.fullName}</span>
+                        <span className="text-[11px] text-slate-600 font-mono">{b.borrowerCode} • {b.businessName}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-white bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-mono shadow-2xs">
+                          <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 font-extrabold">NIN:</span> {b.nin} {b.ninDocumentUrl ? '✓ Slip Attached' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

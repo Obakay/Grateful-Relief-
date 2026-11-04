@@ -254,6 +254,44 @@ export const INITIAL_PRODUCTS: LoanProduct[] = [
   },
 ];
 
+export function createNimcSlipSvg(borrowerName: string, ninNumber: string, slipRef: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
+    <defs>
+      <linearGradient id="nimcBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#f0fdf4"/>
+        <stop offset="100%" stop-color="#dcfce7"/>
+      </linearGradient>
+    </defs>
+    <rect width="600" height="380" rx="16" fill="url(#nimcBg)" stroke="#15803d" stroke-width="3"/>
+    <rect x="15" y="15" width="570" height="70" rx="10" fill="#14532d"/>
+    <text x="30" y="44" fill="#ffffff" font-family="Arial, sans-serif" font-size="15" font-weight="bold">FEDERAL REPUBLIC OF NIGERIA</text>
+    <text x="30" y="66" fill="#86efac" font-family="Arial, sans-serif" font-size="12" font-weight="600">NATIONAL IDENTITY MANAGEMENT COMMISSION • OFFICIAL NIN SLIP</text>
+    <circle cx="535" cy="50" r="22" fill="#166534" stroke="#86efac" stroke-width="1.5"/>
+    <text x="535" y="55" fill="#ffffff" font-family="Arial, sans-serif" font-size="9" font-weight="bold" text-anchor="middle">NIMC</text>
+    
+    <rect x="35" y="105" width="120" height="150" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="95" cy="155" r="30" fill="#94a3b8"/>
+    <path d="M 50 235 Q 95 195 140 235" fill="#64748b"/>
+    <text x="95" y="248" fill="#475569" font-family="Arial, sans-serif" font-size="10" font-weight="bold" text-anchor="middle">KYC PHOTO</text>
+    
+    <text x="180" y="125" fill="#64748b" font-family="Arial, sans-serif" font-size="10" font-weight="bold">REGISTERED BORROWER NAME</text>
+    <text x="180" y="148" fill="#0f172a" font-family="Arial, sans-serif" font-size="16" font-weight="bold">${borrowerName}</text>
+    
+    <text x="180" y="180" fill="#64748b" font-family="Arial, sans-serif" font-size="10" font-weight="bold">NATIONAL IDENTITY NUMBER (NIN)</text>
+    <rect x="180" y="190" width="280" height="36" rx="6" fill="#ffffff" stroke="#15803d" stroke-width="1.5"/>
+    <text x="195" y="215" fill="#14532d" font-family="monospace" font-size="17" font-weight="bold" letter-spacing="3">${ninNumber}</text>
+    
+    <text x="180" y="250" fill="#64748b" font-family="Arial, sans-serif" font-size="10">TRACKING REF: ${slipRef}</text>
+    <text x="180" y="267" fill="#64748b" font-family="Arial, sans-serif" font-size="10">STATUS: VERIFIED &amp; ATTACHED • GRATEFUL RELIEF PROGRAM LIMITED</text>
+    
+    <rect x="340" y="280" width="220" height="70" rx="8" fill="#ffffff" stroke="#059669" stroke-width="2" stroke-dasharray="4 2"/>
+    <text x="450" y="305" fill="#047857" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">✓ NIMC DOCUMENT VERIFIED</text>
+    <text x="450" y="323" fill="#065f46" font-family="Arial, sans-serif" font-size="9" text-anchor="middle">MICROFINANCE COMPLIANCE</text>
+    <text x="450" y="338" fill="#065f46" font-family="Arial, sans-serif" font-size="8" text-anchor="middle">LAGOS STATE OPERATIONS</text>
+  </svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
 export const INITIAL_BORROWERS: Borrower[] = [
   {
     id: 'bor-01',
@@ -262,6 +300,9 @@ export const INITIAL_BORROWERS: Borrower[] = [
     phone: '+234 803 111 2233',
     alternatePhone: '+234 812 444 5566',
     nin: '29384756***',
+    ninDocumentUrl: createNimcSlipSvg('Alhaja Kudirat Alabi', '29384756102', 'NIMC-NIN-2026-001'),
+    ninDocumentName: 'kudirat_alabi_nin_slip.jpg',
+    ninUploadedAt: '2026-02-10T10:00:00Z',
     bvn: '22119988***',
     residentialAddress: '14 Idumota Lane, Lagos Island',
     businessName: 'Alhaja Kudirat Ankara Fabrics',
@@ -286,6 +327,9 @@ export const INITIAL_BORROWERS: Borrower[] = [
     fullName: 'Mrs. Blessing Okon',
     phone: '+234 802 333 7788',
     nin: '10928374***',
+    ninDocumentUrl: createNimcSlipSvg('Mrs. Blessing Okon', '10928374521', 'NIMC-NIN-2026-002'),
+    ninDocumentName: 'blessing_okon_nin_slip.png',
+    ninUploadedAt: '2026-03-01T09:00:00Z',
     residentialAddress: '7 Ojuelegba Road, Surulere, Lagos',
     businessName: 'Blessing Fresh Seafoods & Catfish',
     businessAddress: 'Wet Section, Stall 12, Tejuosho Market, Yaba',
@@ -309,6 +353,9 @@ export const INITIAL_BORROWERS: Borrower[] = [
     fullName: 'Mr. Sunday Eze',
     phone: '+234 814 999 1234',
     nin: '44556677***',
+    ninDocumentUrl: createNimcSlipSvg('Mr. Sunday Eze', '44556677893', 'NIMC-NIN-2026-003'),
+    ninDocumentName: 'sunday_eze_nin_slip.jpg',
+    ninUploadedAt: '2026-03-15T12:00:00Z',
     residentialAddress: '23 Agege Motor Road, Oshodi, Lagos',
     businessName: 'Eze Power Tech Accessories',
     businessAddress: 'Line 3, Shop 18, Arena Market, Bolade Oshodi',
@@ -332,6 +379,9 @@ export const INITIAL_BORROWERS: Borrower[] = [
     fullName: 'Madam Folashade Adele',
     phone: '+234 805 444 8899',
     nin: '99887766***',
+    ninDocumentUrl: createNimcSlipSvg('Madam Folashade Adele', '99887766542', 'NIMC-NIN-2026-004'),
+    ninDocumentName: 'folashade_adele_nin_slip.jpg',
+    ninUploadedAt: '2026-04-02T10:00:00Z',
     residentialAddress: '8 Broad Street, Lagos Island',
     businessName: 'Folashade Grain & Rice Depot',
     businessAddress: 'Stall C-15, Oroyinyin Street, Lagos Island',
@@ -815,6 +865,15 @@ class DatabaseService {
         }
         if (!parsed.systemMode) {
           parsed.systemMode = 'demo';
+        }
+        if (parsed.borrowers && Array.isArray(parsed.borrowers)) {
+          parsed.borrowers.forEach((b: Borrower) => {
+            if (!b.ninDocumentUrl && b.fullName) {
+              b.ninDocumentUrl = createNimcSlipSvg(b.fullName, b.nin || '29384756***', `NIMC-NIN-${b.borrowerCode || 'VERIFIED'}`);
+              b.ninDocumentName = `${b.fullName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_nin_slip.jpg`;
+              b.ninUploadedAt = b.createdAt || new Date().toISOString();
+            }
+          });
         }
         return parsed;
       }

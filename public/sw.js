@@ -4,7 +4,7 @@
  * Optimized for Nigerian field microfinance operations in low/no connectivity market zones.
  */
 
-const CACHE_VERSION = 'grp-loan-v2';
+const CACHE_VERSION = 'grp-loan-v5';
 const STATIC_CACHE = `grp-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `grp-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `grp-fonts-${CACHE_VERSION}`;
@@ -51,7 +51,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event handler with smart Cache-First & Stale-While-Revalidate strategies
+// Fetch event handler with smart Network-First for navigation & Stale-While-Revalidate for assets
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
@@ -88,42 +88,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Navigation requests (App Shell): Cache-First falling back to Network, then fallback to index.html
+  // 2. Navigation requests (App Shell): Network-First with instant offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request).then((cachedNav) => {
-        if (cachedNav) {
-          // Attempt network revalidation in background
-          fetch(request).then((freshNav) => {
-            if (freshNav && freshNav.status === 200) {
-              caches.open(STATIC_CACHE).then((c) => c.put(request, freshNav));
-            }
-          }).catch(() => {});
-          return cachedNav;
-        }
-
-        return fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const resClone = networkResponse.clone();
-              caches.open(STATIC_CACHE).then((c) => c.put(request, resClone));
-            }
-            return networkResponse;
-          })
-          .catch(async () => {
-            // Offline fallback: serve cached index.html or root
-            const shell = await caches.match('/index.html') || await caches.match('/');
-            if (shell) return shell;
-            return new Response(
-              '<html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#064e3b;color:white;"><h1>GRP Loan Manager</h1><p>You are offline in a low-signal area. Your local data remains safe. Please refresh once signal is restored.</p></body></html>',
-              { headers: { 'Content-Type': 'text/html' } }
-            );
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const resClone = networkResponse.clone();
+            caches.open(STATIC_CACHE).then((c) => c.put(request, resClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(request).then((cachedNav) => {
+            return cachedNav || caches.match('/index.html') || caches.match('/');
           });
-      })
+        })
     );
     return;
   }
-
   // 3. Static assets, scripts, styles, images: Cache-First with Stale-While-Revalidate
   const isStaticAsset = 
     url.pathname.endsWith('.js') ||

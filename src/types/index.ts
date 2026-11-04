@@ -29,6 +29,9 @@ export interface Borrower {
   phone: string;
   alternatePhone?: string;
   nin: string; // National Identity Number (masked for privacy)
+  ninDocumentUrl?: string; // Uploaded official NIN slip or card document (base64 data URL)
+  ninDocumentName?: string; // Original uploaded document filename
+  ninUploadedAt?: string; // Timestamp when NIN document was verified and uploaded
   bvn?: string; // Bank Verification Number (masked)
   residentialAddress: string;
   businessName: string;
