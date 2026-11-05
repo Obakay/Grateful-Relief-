@@ -24,12 +24,10 @@ import { formatNaira, formatDateNG } from '../services/loanCalculator';
 
 interface StaffManagementViewProps {
   onStaffUpdated: () => void;
-  onSwitchUser: (userId: string) => void;
 }
 
 export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
   onStaffUpdated,
-  onSwitchUser,
 }) => {
   const currentUser = dbService.getCurrentUser();
   const [staffList, setStaffList] = useState<UserProfile[]>(dbService.getUsers());
@@ -449,14 +447,6 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
                           </button>
                         )}
 
-                        <button
-                          onClick={() => onSwitchUser(staff.id)}
-                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg text-[10px] transition flex items-center gap-1"
-                          title="Switch active user to test permissions"
-                        >
-                          <span>Switch</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
                       </div>
                     </td>
                   </tr>

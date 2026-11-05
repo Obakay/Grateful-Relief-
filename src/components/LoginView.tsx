@@ -19,10 +19,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { dbService } from '../services/db';
+import { supabase } from '../Lib/SupabaseClient';
 import { UserProfile, UserRole } from '../types';
 import { ThemeMode } from '../services/theme';
-import { biometricService, EnrolledBiometricCredential } from '../services/biometrics';
-import { BiometricModal } from './BiometricModal';
 import { OfflineIndicator } from './OfflineIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -33,29 +32,12 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onToggleTheme }) => {
-  const staffAccounts = dbService.getUsers();
-  const currentAdmin = staffAccounts.find(u => u.role === 'administrator') || staffAccounts[0];
-  const systemMode = dbService.getSystemMode();
-
-  const [email, setEmail] = useState(() => currentAdmin?.email || 'obayomikayode56@gmail.com');
-  const [password, setPassword] = useState('grateful2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Biometric Authentication state (Credential Management API)
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState<boolean>(() => {
-    return biometricService.isBiometricLoginEnabled();
-  });
-  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
-  const [biometricMode, setBiometricMode] = useState<'authenticate' | 'enroll'>('authenticate');
-  const [selectedBiometricUser, setSelectedBiometricUser] = useState<UserProfile | null>(null);
-  const [enrolledCreds, setEnrolledCreds] = useState<EnrolledBiometricCredential[]>(() => {
-    return biometricService.getEnrolledCredentials();
-  });
-
-  const deviceName = biometricService.detectDeviceName();
 
   const roleBadges: Record<UserRole, { label: string; badge: string }> = {
     administrator: {
@@ -84,97 +66,70 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
     },
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsSubmitting(true);
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      const user = staffAccounts.find(u => u.email.toLowerCase() === trimmedEmail);
 
-      if (!user) {
-        setErrorMessage('Invalid corporate email address. Account not found in staff registry.');
-        setIsSubmitting(false);
-        return;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
+
+      if (error || !data.user) {
+        throw new Error('Unable to sign in. Check your email and password.');
       }
 
-      if (!user.isActive) {
-        setErrorMessage('This staff account has been deactivated by administration. Contact HR.');
-        setIsSubmitting(false);
-        return;
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role, phone, branch, approval_limit, is_active, created_at')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        throw new Error('Your staff profile was not found. Contact your administrator.');
       }
 
-      if (!password || password.length < 4) {
-        setErrorMessage('Password must be at least 4 characters long.');
-        setIsSubmitting(false);
-        return;
+      if (!profile.is_active) {
+        await supabase.auth.signOut();
+        throw new Error('This staff account is inactive. Contact your administrator.');
       }
 
-      // Switch active user in database and audit
-      const loggedIn = dbService.switchUser(user.id);
+      if (!['administrator', 'loan_officer', 'auditor'].includes(profile.role)) {
+        await supabase.auth.signOut();
+        throw new Error('This account has an unsupported role. Contact your administrator.');
+      }
+
+      const authenticatedUser: UserProfile = {
+        id: profile.id,
+        email: profile.email,
+        fullName: profile.full_name,
+        role: profile.role as UserRole,
+        phone: profile.phone || '',
+        branch: profile.branch || '',
+        approvalLimit: Number(profile.approval_limit || 0),
+        isActive: profile.is_active,
+        createdAt: profile.created_at,
+      };
+
+      const loggedIn = dbService.setAuthenticatedUser(authenticatedUser);
+
       dbService.logAudit(
         'LOGIN',
         'UserProfile',
-        user.id,
-        `Staff member ${user.fullName} logged in successfully from ${user.branch}`
+        loggedIn.id,
+        `Staff member ${loggedIn.fullName} signed in through Supabase Auth.`
       );
 
       onLoginSuccess(loggedIn);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Authentication failed. Please verify credentials.');
+      setErrorMessage(err?.message || 'Authentication failed. Please try again.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickLogin = (user: UserProfile) => {
-    setEmail(user.email);
-    setPassword('grateful2026');
-    setErrorMessage(null);
-
-    const loggedIn = dbService.switchUser(user.id);
-    dbService.logAudit(
-      'LOGIN',
-      'UserProfile',
-      user.id,
-      `Quick login for ${user.fullName} (${user.role.replace('_', ' ')})`
-    );
-    onLoginSuccess(loggedIn);
-  };
-
-  const handleToggleBiometric = (enabled: boolean) => {
-    setIsBiometricEnabled(enabled);
-    biometricService.setBiometricLoginEnabled(enabled);
-    if (enabled && enrolledCreds.length === 0) {
-      const match = staffAccounts.find(s => s.email.toLowerCase() === email.toLowerCase()) || staffAccounts[0];
-      setSelectedBiometricUser(match);
-      setBiometricMode('enroll');
-      setBiometricModalOpen(true);
-    }
-  };
-
-  const handleTriggerBiometricAuth = (userToAuth?: UserProfile) => {
-    const target = userToAuth || staffAccounts.find(s => s.email.toLowerCase() === email.toLowerCase()) || staffAccounts[0];
-    setSelectedBiometricUser(target);
-    setBiometricMode('authenticate');
-    setBiometricModalOpen(true);
-  };
-
-  const handleBiometricSuccess = (user?: UserProfile) => {
-    const authed = user || selectedBiometricUser || staffAccounts[0];
-    setBiometricModalOpen(false);
-    setEnrolledCreds(biometricService.getEnrolledCredentials());
-
-    if (biometricMode === 'authenticate') {
-      const loggedIn = dbService.switchUser(authed.id);
-      dbService.logAudit(
-        'LOGIN',
-        'UserProfile',
-        authed.id,
-        `Biometric Authentication verified via Credential Management API for ${authed.fullName} on ${deviceName}`
-      );
-      onLoginSuccess(loggedIn);
     }
   };
 
@@ -256,68 +211,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
             </div>
           )}
 
-          {/* Biometric Mobile & Desktop Security Box */}
-          <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-800 text-white flex items-center justify-center shadow-xs">
-                  <Fingerprint className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>Biometric Authentication</span>
-                    <span className="text-[9px] px-1.5 py-0.5 bg-emerald-200/70 dark:bg-emerald-800/60 text-emerald-900 dark:text-emerald-200 font-mono rounded-md font-semibold">
-                      WebAuthn API
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Fingerprint & Face ID hardware verification
-                  </div>
-                </div>
-              </div>
-
-              {/* Biometric Toggle Switch */}
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isBiometricEnabled}
-                  onChange={e => handleToggleBiometric(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-700"></div>
-              </label>
-            </div>
-
-            {/* Quick 1-Tap Biometric Sign In button when enabled */}
-            {isBiometricEnabled && (
-              <div className="pt-1.5 space-y-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleTriggerBiometricAuth()}
-                  className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
-                >
-                  <Fingerprint className="w-4 h-4 text-emerald-300 animate-pulse" />
-                  <span>Sign In with Fingerprint / Face ID</span>
-                </button>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-1">
-                  <span>Hardware verified: {deviceName}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const match = staffAccounts.find(s => s.email.toLowerCase() === email.toLowerCase()) || staffAccounts[0];
-                      setSelectedBiometricUser(match);
-                      setBiometricMode('enroll');
-                      setBiometricModalOpen(true);
-                    }}
-                    className="text-emerald-700 dark:text-emerald-400 font-semibold hover:underline cursor-pointer"
-                  >
-                    + Enroll Another Account
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
@@ -385,33 +278,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
             </button>
           </form>
 
-          {/* Quick Sign In Shortcut */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-              <span>{systemMode === 'production' ? 'Registered Staff Accounts' : 'Quick 1-Click Demo Login'}</span>
-              <span className="text-[9px] font-mono lowercase">{staffAccounts.length} staff</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-              {staffAccounts.map(staff => (
-                <button
-                  key={staff.id}
-                  type="button"
-                  onClick={() => handleQuickLogin(staff)}
-                  className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition flex items-center gap-2 group cursor-pointer"
-                >
-                  <div className="w-7 h-7 rounded-full bg-emerald-900 text-white font-bold flex items-center justify-center text-[10px] shrink-0 group-hover:bg-emerald-700">
-                    {staff.fullName.charAt(0)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate">{staff.fullName}</div>
-                    <div className="text-[9px] text-emerald-800 dark:text-emerald-400 font-semibold capitalize truncate">
-                      {staff.role.replace('_', ' ')}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Security & Regulatory footer */}
@@ -426,15 +292,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
         </div>
       </div>
 
-      {/* Biometric Scan Modal */}
-      <BiometricModal
-        isOpen={biometricModalOpen}
-        mode={biometricMode}
-        targetUser={selectedBiometricUser}
-        staffList={staffAccounts}
-        onSuccess={handleBiometricSuccess}
-        onClose={() => setBiometricModalOpen(false)}
-      />
     </div>
   );
 };

@@ -992,6 +992,25 @@ class DatabaseService {
     return found;
   }
 
+  public setAuthenticatedUser(user: UserProfile): UserProfile {
+    const authenticatedUser = { ...user };
+    delete authenticatedUser.password;
+
+    const existingIndex = this.db.users.findIndex(
+      existing => existing.id === authenticatedUser.id
+    );
+
+    if (existingIndex >= 0) {
+      this.db.users[existingIndex] = authenticatedUser;
+    } else {
+      this.db.users.push(authenticatedUser);
+    }
+
+    this.db.currentUserId = authenticatedUser.id;
+    this.saveDatabase();
+    return authenticatedUser;
+  }
+
   public addUser(user: Omit<UserProfile, 'id' | 'createdAt'>): UserProfile {
     const currentUser = this.getCurrentUser();
     if (currentUser.role !== 'administrator') {

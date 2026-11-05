@@ -6,6 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { dbService } from './services/db';
+import { supabase } from './Lib/SupabaseClient';
+import { UserRole } from './types';
 import { TabType, Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
@@ -37,9 +39,8 @@ import { Repayment, Loan, Borrower, SystemNotification } from './types';
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('grp_auth_active') !== 'false';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [currentUser, setCurrentUser] = useState(dbService.getCurrentUser());
   const [users, setUsers] = useState(dbService.getUsers());
@@ -49,6 +50,90 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // Verify the saved Supabase session before showing the application.
+  useEffect(() => {
+    let mounted = true;
+
+    const verifySession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error || !data.session) {
+          if (mounted) {
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, role, phone, branch, approval_limit, is_active, created_at')
+          .eq('id', data.session.user.id)
+          .single();
+
+        const validRoles = ['administrator', 'loan_officer', 'auditor'];
+
+        if (
+          profileError ||
+          !profile ||
+          !profile.is_active ||
+          !validRoles.includes(profile.role)
+        ) {
+          await supabase.auth.signOut();
+
+          if (mounted) {
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
+        const authenticatedUser = {
+          id: profile.id,
+          email: profile.email,
+          fullName: profile.full_name,
+          role: profile.role as UserRole,
+          phone: profile.phone || '',
+          branch: profile.branch || '',
+          approvalLimit: Number(profile.approval_limit || 0),
+          isActive: profile.is_active,
+          createdAt: profile.created_at,
+        };
+
+        dbService.setAuthenticatedUser(authenticatedUser);
+
+        if (mounted) {
+          setCurrentUser(authenticatedUser);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Session verification failed:', error);
+
+        if (mounted) {
+          setIsAuthenticated(false);
+        }
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    verifySession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'SIGNED_OUT' && mounted) {
+          setIsAuthenticated(false);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Reactive Database listener (refreshes state on local changes & central cloud sync)
   const [, setDbVersion] = useState(0);
@@ -82,11 +167,6 @@ export default function App() {
   const overdueLoansCount = dbService.getLoans().filter(l => l.status === 'overdue').length;
   const pendingExpensesCount = dbService.getExpenses().filter(e => e.status === 'pending').length;
 
-  const handleSwitchUser = (userId: string) => {
-    const switched = dbService.switchUser(userId);
-    setCurrentUser({ ...switched });
-  };
-
   const handleResetData = () => {
     dbService.resetToDemoData();
     setCurrentUser(dbService.getCurrentUser());
@@ -103,6 +183,17 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="text-sm font-semibold">Verifying secure session...</div>
+          <div className="text-xs text-slate-400 mt-2">Grateful Relief Loan Manager</div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <LoginView
@@ -111,7 +202,6 @@ export default function App() {
         onLoginSuccess={user => {
           setCurrentUser(user);
           setIsAuthenticated(true);
-          localStorage.setItem('grp_auth_active', 'true');
         }}
       />
     );
@@ -125,17 +215,15 @@ export default function App() {
       {/* Top Header */}
       <Header
         currentUser={currentUser}
-        users={users}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        onSwitchUser={handleSwitchUser}
         onOpenTests={() => setIsTestModalOpen(true)}
         onOpenDocs={() => setIsDocsModalOpen(true)}
         onOpenProductionSetup={() => setIsProductionModalOpen(true)}
         onResetData={handleResetData}
-        onSignOut={() => {
+        onSignOut={async () => {
+          await supabase.auth.signOut();
           setIsAuthenticated(false);
-          localStorage.setItem('grp_auth_active', 'false');
         }}
         notifications={notifications}
         onNotificationClick={handleNotificationClick}
@@ -221,7 +309,6 @@ export default function App() {
           {currentTab === 'staff' && (
             <StaffManagementView
               onStaffUpdated={() => setUsers(dbService.getUsers())}
-              onSwitchUser={handleSwitchUser}
             />
           )}
 

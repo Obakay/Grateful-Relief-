@@ -28,10 +28,8 @@ import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   currentUser: UserProfile;
-  users: UserProfile[];
   theme: ThemeMode;
   onToggleTheme: () => void;
-  onSwitchUser: (userId: string) => void;
   onOpenTests: () => void;
   onOpenDocs: () => void;
   onOpenProductionSetup: () => void;
@@ -43,10 +41,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
-  users,
   theme,
   onToggleTheme,
-  onSwitchUser,
   onOpenTests,
   onOpenDocs,
   onOpenProductionSetup,
@@ -65,25 +61,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   const unreadNotifs = notifications.filter(n => !n.read);
   const systemMode = dbService.getSystemMode();
-
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'administrator':
-        return 'bg-amber-100 text-amber-900 border-amber-300';
-      case 'loan_officer':
-        return 'bg-emerald-100 text-emerald-900 border-emerald-300';
-      case 'branch_manager':
-        return 'bg-purple-100 text-purple-900 border-purple-300';
-      case 'supervisor':
-        return 'bg-indigo-100 text-indigo-900 border-indigo-300';
-      case 'accountant':
-        return 'bg-teal-100 text-teal-900 border-teal-300';
-      case 'auditor':
-        return 'bg-blue-100 text-blue-900 border-blue-300';
-      default:
-        return 'bg-slate-100 text-slate-800 border-slate-300';
-    }
-  };
 
   return (
     <header className="bg-emerald-950 text-white border-b border-emerald-900 sticky top-0 z-40 shadow-md no-print">
@@ -290,42 +267,16 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
 
-              {/* User Switch Menu */}
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-72 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 py-2 z-50">
-                  <div className="px-4 py-2 border-b border-slate-100">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                      Switch Role for Testing & Maker-Checker
-                    </p>
-                  </div>
-                  <div className="p-1 space-y-1">
-                    {users.map(u => (
-                      <button
-                        key={u.id}
-                        onClick={() => {
-                          onSwitchUser(u.id);
-                          setShowUserMenu(false);
-                        }}
-                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition ${
-                          u.id === currentUser.id
-                            ? 'bg-emerald-50 text-emerald-950 font-bold'
-                            : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-semibold text-slate-900">{u.fullName}</div>
-                          <div className="text-[11px] text-slate-500">{u.branch}</div>
-                        </div>
-                        <span
-                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${getRoleBadge(
-                            u.role
-                          )}`}
-                        >
-                          {u.role.replace('_', ' ')}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+              {/* Signed-in Staff Details */}
+              <div className="px-4 py-3 border-b border-slate-100">
+                <p className="text-xs font-bold text-slate-900">{currentUser.fullName}</p>
+                <p className="text-[11px] text-slate-500">{currentUser.email}</p>
+                <p className="text-[10px] text-emerald-700 font-semibold mt-1 capitalize">
+                  {currentUser.role.replace('_', ' ')}
+                </p>
+              </div>
 
                   <div className="border-t border-slate-100 p-2 mt-1 space-y-1">
                     <button
