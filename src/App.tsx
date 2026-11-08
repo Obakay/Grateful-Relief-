@@ -40,6 +40,7 @@ import { Repayment, Loan, Borrower, SystemNotification } from './types';
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => window.location.hash.includes('type=recovery') || new URLSearchParams(window.location.search).has('code'));
   const [authLoading, setAuthLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [currentUser, setCurrentUser] = useState(dbService.getCurrentUser());
@@ -68,17 +69,17 @@ export default function App() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('id, email, full_name, role, phone, branch, approval_limit, is_active, created_at')
+          .select('id, full_name, role, active, created_at')
           .eq('id', data.session.user.id)
           .single();
 
-        const validRoles = ['administrator', 'loan_officer', 'auditor'];
+        const roleMap: Record<string, UserRole> = { admin: 'administrator', officer: 'loan_officer', auditor: 'auditor' };
 
         if (
           profileError ||
           !profile ||
-          !profile.is_active ||
-          !validRoles.includes(profile.role)
+          !profile.active ||
+          !roleMap[profile.role]
         ) {
           await supabase.auth.signOut();
 
@@ -90,13 +91,13 @@ export default function App() {
 
         const authenticatedUser = {
           id: profile.id,
-          email: profile.email,
+          email: data.session.user.email || '',
           fullName: profile.full_name,
-          role: profile.role as UserRole,
-          phone: profile.phone || '',
-          branch: profile.branch || '',
-          approvalLimit: Number(profile.approval_limit || 0),
-          isActive: profile.is_active,
+          role: roleMap[profile.role],
+          phone: '',
+          branch: '',
+          approvalLimit: 0,
+          isActive: profile.active,
           createdAt: profile.created_at,
         };
 
@@ -123,6 +124,11 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event) => {
+        if (event === 'PASSWORD_RECOVERY' && mounted) {
+          setIsPasswordRecovery(true);
+          setIsAuthenticated(false);
+        }
+
         if (event === 'SIGNED_OUT' && mounted) {
           setIsAuthenticated(false);
         }
@@ -194,13 +200,15 @@ export default function App() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isPasswordRecovery) {
     return (
       <LoginView
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        initialRecoveryMode={isPasswordRecovery}
         onLoginSuccess={user => {
           setCurrentUser(user);
+          setIsPasswordRecovery(false);
           setIsAuthenticated(true);
         }}
       />

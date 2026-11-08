@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Lock,
   Mail,
@@ -27,17 +27,105 @@ import { PWAInstallButton } from './PWAInstallButton';
 
 interface LoginViewProps {
   onLoginSuccess: (user: UserProfile) => void;
+  initialRecoveryMode?: boolean;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onToggleTheme }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, initialRecoveryMode = false, theme, onToggleTheme }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(initialRecoveryMode || window.location.hash.includes('type=recovery') || new URLSearchParams(window.location.search).has('code'));
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.location.hash.includes('type=recovery')) {
+      setRecoveryMode(true);
+    }
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+      }
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const handlePasswordRecovery = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const recoveryEmail = email.trim().toLowerCase();
+
+    if (!recoveryEmail) {
+      setErrorMessage('Enter your admin email address first.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        recoveryEmail,
+        { redirectTo: window.location.origin }
+      );
+
+      if (error) throw error;
+
+      setSuccessMessage('Password recovery email sent. Open the link in your email to set a new password.');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Unable to send recovery email.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (newPassword.length < 8) {
+      setErrorMessage('Your new password must contain at least 8 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('The two passwords do not match.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      await supabase.auth.signOut();
+      setRecoveryMode(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword('');
+      setSuccessMessage('Password changed successfully. You can now sign in with your new password.');
+      window.history.replaceState(null, '', window.location.pathname);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Unable to update password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const roleBadges: Record<UserRole, { label: string; badge: string }> = {
     administrator: {
@@ -80,12 +168,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
       });
 
       if (error || !data.user) {
-        throw new Error('Unable to sign in. Check your email and password.');
+        throw new Error(error?.message || 'Unable to sign in. Check your email and password.');
       }
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, phone, branch, approval_limit, is_active, created_at')
+        .select('id, full_name, role, active, created_at')
         .eq('id', data.user.id)
         .single();
 
@@ -94,25 +182,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
         throw new Error('Your staff profile was not found. Contact your administrator.');
       }
 
-      if (!profile.is_active) {
+      if (!profile.active) {
         await supabase.auth.signOut();
         throw new Error('This staff account is inactive. Contact your administrator.');
       }
 
-      if (!['administrator', 'loan_officer', 'auditor'].includes(profile.role)) {
+      if (!['admin', 'officer', 'auditor'].includes(profile.role)) {
         await supabase.auth.signOut();
         throw new Error('This account has an unsupported role. Contact your administrator.');
       }
 
       const authenticatedUser: UserProfile = {
         id: profile.id,
-        email: profile.email,
+        email: data.user.email || '',
         fullName: profile.full_name,
-        role: profile.role as UserRole,
-        phone: profile.phone || '',
-        branch: profile.branch || '',
-        approvalLimit: Number(profile.approval_limit || 0),
-        isActive: profile.is_active,
+        role: ({ admin: 'administrator', officer: 'loan_officer', auditor: 'auditor' } as Record<string, UserRole>)[profile.role],
+        phone: '',
+        branch: '',
+        approvalLimit: 0,
+        isActive: profile.active,
         createdAt: profile.created_at,
       };
 
@@ -211,6 +299,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
             </div>
           )}
 
+          {successMessage && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs">
+              {successMessage}
+            </div>
+          )}
+
+          {recoveryMode === false && (
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
@@ -263,9 +358,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
                 />
                 <span>Remember this workstation</span>
               </label>
-              <span className="text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold cursor-pointer hover:underline">
-                Forgot password?
-              </span>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handlePasswordRecovery}
+                className="text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold hover:underline disabled:opacity-50"
+              >
+                {isSubmitting ? 'Sending...' : 'Forgot password?'}
+              </button>
             </div>
 
             <button
@@ -277,6 +377,58 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, theme, onT
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+          )}
+
+          {recoveryMode && (
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white">Set a New Password</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter your new password and confirm it below.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  className="w-full border rounded-xl p-3 text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Enter the same password again"
+                  className="w-full border rounded-xl p-3 text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm"
+              >
+                {isSubmitting ? 'Saving Password...' : 'Save New Password'}
+              </button>
+            </form>
+          )}
 
         </div>
 
