@@ -57,9 +57,21 @@ export default function App() {
     let mounted = true;
 
     const verifySession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
+  try {
+    // Detect a password recovery link before checking the saved session.
+    const isRecoveryCallback =
+      window.location.hash.includes('type=recovery') ||
+      new URLSearchParams(window.location.search).has('code');
 
+    if (isRecoveryCallback) {
+      if (mounted) {
+        setIsPasswordRecovery(true);
+        setIsAuthenticated(false);
+      }
+      return;
+    }
+
+    const { data, error } = await supabase.auth.getSession();
         if (error || !data.session) {
           if (mounted) {
             setIsAuthenticated(false);
