@@ -358,14 +358,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, initialRec
                 />
                 <span>Remember this workstation</span>
               </label>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handlePasswordRecovery}
-                className="text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold hover:underline disabled:opacity-50"
-              >
-                {isSubmitting ? 'Sending...' : 'Forgot password?'}
-              </button>
+              <<button
+  type="button"
+  disabled={isSubmitting}
+  onClick={() => {
+    console.log('Forgot password button tapped');
+    handlePasswordRecovery();
+  }}
+  className="relative z-50 min-h-[44px] px-3 py-2 text-sm text-emerald-800 dark:text-emerald-400 font-bold hover:underline cursor-pointer touch-manipulation disabled:opacity-50"
+>
+  {isSubmitting ? 'Sending...' : 'Forgot password?'}
+</button>
             </div>
 
             <button
